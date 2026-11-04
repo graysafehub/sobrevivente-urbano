@@ -71,6 +71,14 @@ function sincronizarCatalogo(s) {
     if (parecido) { parecido.base = base.nome; continue; }
     s.items.push({ id: uid(), base: base.nome, ...base });
   }
+  // item criado à mão igual a um do catálogo (mesmo começo de nome, categoria, unidade e cálculo):
+  // fica um só, com o nome e os dados do usuário, ligado ao catálogo
+  for (const cat of s.items.filter(i => i.base)) {
+    for (const dup of s.items.filter(i => !i.base && norm(i.nome).startsWith(norm(cat.base)) && i.categoria === cat.categoria && i.unidade === cat.unidade && (i.escala || "casa") === (cat.escala || "casa"))) {
+      juntarItens(s, cat.id, dup.id);
+      break;
+    }
+  }
   for (const m of s.familia.mochila) {
     if (m.itemId && s.items.some(i => i.id === m.itemId)) continue;
     const ligado = SEED_MOCHILA.find(x => x.nome === m.nome)?.estoque;
@@ -107,11 +115,27 @@ function migrarBasePorPessoa(s) {
   }
 }
 
+// junta o item de origem no de destino: lotes, histórico, códigos e mochila passam para o destino
+function juntarItens(s, deId, paraId) {
+  const de = s.items.find(i => i.id === deId), para = s.items.find(i => i.id === paraId);
+  if (!de || !para || de === para) return;
+  for (const l of s.lotes) if (l.itemId === deId) l.itemId = paraId;
+  for (const m of s.movs) if (m.itemId === deId) m.itemId = paraId;
+  for (const c of Object.values(s.codigos)) if (c.itemId === deId) c.itemId = paraId;
+  for (const m of s.familia.mochila) if (m.itemId === deId) m.itemId = paraId;
+  para.base ??= de.base;
+  for (const k of ["precoRef", "vidaMeses", "avisoDias", "minimo"]) para[k] ??= de[k];
+  if (!para.spec) para.spec = de.spec || "";
+  if (!para.dica) para.dica = de.dica || "";
+  s.items = s.items.filter(i => i.id !== deId);
+}
+
 function load() {
   try {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       state = migrar(JSON.parse(raw));
+      save();
       return;
     }
   } catch (e) {}
@@ -688,6 +712,10 @@ function viewEditar(id) {
       <label>Dica <span class="opt">(opcional)</span><input id="iDica" value="${esc(it.dica || "")}"></label>
       <button class="btn" type="submit">Salvar</button>
     </form>
+    ${id ? `<div class="card form" id="juntarArea"><h2>Item repetido?</h2>
+      <label>Juntar este item com<select id="jPara"><option value="">Escolha…</option>${state.items.filter(i => i.id !== id && i.unidade === it.unidade).map(i => `<option value="${i.id}">${esc(i.nome)}</option>`).join("")}</select></label>
+      <p class="sub">O que está em casa, o histórico e os códigos deste item passam para o escolhido, e este some da lista.</p>
+      <button class="btn ghost" id="bJuntar" type="button">Juntar</button></div>` : ""}
     ${id ? `<div id="delArea"><button class="btn ghost danger" id="delItem" type="button">Excluir item</button></div>` : ""}
   </section>`;
 }
@@ -1212,6 +1240,16 @@ document.addEventListener("click", e => {
   if (t.dataset.mochilaDel) {
     state.familia.mochila = state.familia.mochila.filter(m => m.id !== t.dataset.mochilaDel);
     save(); render();
+  }
+  if (t.id === "bJuntar") {
+    const para = item(document.getElementById("jPara").value);
+    if (!para) return toast("Escolha com qual item juntar.");
+    document.getElementById("juntarArea").insertAdjacentHTML("beforeend", `<div class="confirm"><span>Juntar em ${esc(para.nome)}?</span>
+      <button class="btn small" id="juntarSim" type="button" data-para="${para.id}">Juntar</button><button class="btn small ghost" id="delNo" type="button">Cancelar</button></div>`);
+  }
+  if (t.id === "juntarSim") {
+    juntarItens(state, location.hash.slice(1).split("/")[1], t.dataset.para);
+    save(); toast("Itens juntados"); location.hash = "#item/" + t.dataset.para;
   }
   if (t.id === "delNo") render();
   const [rotaDel, idDel] = location.hash.slice(1).split("/");

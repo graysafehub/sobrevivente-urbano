@@ -38,7 +38,7 @@ Dados antigos e backups antigos são convertidos sozinhos ao abrir.
 
 - **Validade típica:** cada item pode ter quanto costuma durar, em meses (Editar). A Entrada já sugere a data de validade com isso; confira na embalagem.
 - **Aviso:** é a antecedência, até 365 dias. Um aviso maior que 1 ano gravado antes vira validade típica sozinho.
-- **Itens renomeados** continuam ligados ao catálogo e ao guia. Item criado à mão com nome parecido com um do catálogo (ex.: "Repelente de insetos") é ligado a ele, sem duplicar.
+- **Itens renomeados** continuam ligados ao catálogo e ao guia. Item criado à mão com nome parecido com um do catálogo (ex.: "Repelente de insetos") é ligado a ele, sem duplicar; se os dois já existiam (mesma categoria, unidade e cálculo), viram um só, com o nome e os dados do usuário. Em Editar, "Juntar este item com" junta dois itens repetidos à mão.
 - **Itens novos:** copos, pratos e talheres descartáveis; fórmula infantil; carregador e cabo de celular; analgésico adulto; água sanitária; luvas e botas de borracha; cópias dos documentos; cobertor ou manta; lona plástica e fita adesiva; alicate ou chave inglesa. Itens do catálogo que você excluiu não voltam.
 
 ## Guias de crise (fase 2.3)
@@ -70,4 +70,4 @@ Depois abra http://localhost:8765.
 
 ## Ao alterar arquivos
 
-Suba a versão em `sw.js` (hoje `su-v10`) para o celular baixar a versão nova.
+Suba a versão em `sw.js` (hoje `su-v11`) para o celular baixar a versão nova.
