@@ -34,6 +34,13 @@ Dados antigos e backups antigos são convertidos sozinhos ao abrir.
 - **Preço:** a Entrada aceita o preço pago (total); o app guarda o preço por unidade no lote. Cada item pode ter um preço de referência (Editar), usado para o que está em casa sem preço e para estimar a lista de compras; sem ele, vale o último preço pago. O Hub mostra o valor do estoque e quanto falta gastar para a meta; a lista de compras e o papel mostram os valores.
 - **Código de barras:** na Entrada, "Ler código de barras" usa a câmera (leitor nativo do Chrome no Android, funciona offline). Código novo: o app pergunta de qual item é e a marca, e grava. Código conhecido: preenche item, marca e especificação. Mesmo produto e marca, mesmo código; outra marca, outro código. Os códigos de um item aparecem na tela dele e podem ser desligados. Sem câmera, dá para digitar os números.
 
+## Ajustes de validade e catálogo
+
+- **Validade típica:** cada item pode ter quanto costuma durar, em meses (Editar). A Entrada já sugere a data de validade com isso; confira na embalagem.
+- **Aviso:** é a antecedência, até 365 dias. Um aviso maior que 1 ano gravado antes vira validade típica sozinho.
+- **Itens renomeados** continuam ligados ao catálogo e ao guia. Item criado à mão com nome parecido com um do catálogo (ex.: "Repelente de insetos") é ligado a ele, sem duplicar.
+- **Itens novos:** copos, pratos e talheres descartáveis; fórmula infantil; carregador e cabo de celular; analgésico adulto; água sanitária; luvas e botas de borracha; cópias dos documentos; cobertor ou manta; lona plástica e fita adesiva; alicate ou chave inglesa. Itens do catálogo que você excluiu não voltam.
+
 ## Guias de crise (fase 2.3)
 
 No Hub, em "Guias de crise": tratar e guardar água, falta de luz, enchente e temporal, criança com febre ou diarreia. Cada guia tem passos curtos, o que não fazer, sinais para procurar atendimento, quanto há em casa dos itens que ele usa e as fontes (Ministério da Saúde, Defesa Civil Nacional, Secretaria da Saúde de SP e de PE, Ready.gov). O guia da criança mostra as fichas de menores de 12 anos com alergias e remédios. Em Sistema, "Imprimir os guias de crise" gera a versão em papel.
@@ -63,4 +70,4 @@ Depois abra http://localhost:8765.
 
 ## Ao alterar arquivos
 
-Suba a versão em `sw.js` (hoje `su-v9`) para o celular baixar a versão nova.
+Suba a versão em `sw.js` (hoje `su-v10`) para o celular baixar a versão nova.

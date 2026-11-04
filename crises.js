@@ -120,7 +120,7 @@ window.CRISES = [
     id: "chuva",
     titulo: "Enchente e temporal",
     resumo: "Chuva forte, alagamento ou vendaval: antes, durante e depois.",
-    estoque: ["Sacos de lixo resistentes", "Hipoclorito de sódio 2,5%", "Água potável (garrafas)", "Lanterna LED", "Repelente", "Kit de curativos"],
+    estoque: ["Sacos de lixo resistentes", "Hipoclorito de sódio 2,5%", "Água potável (garrafas)", "Lanterna LED", "Repelente", "Kit de curativos", "Água sanitária (sem perfume)", "Luvas de borracha (par)", "Botas de borracha (par)", "Lona plástica e fita adesiva"],
     secoes: [
       {
         titulo: "Antes (alerta de chuva forte)",

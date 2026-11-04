@@ -15,7 +15,8 @@ function uid() {
 function seedState() {
   const s = {
     versao: 4,
-    items: SEED_ITEMS.map(s => ({ id: uid(), ...s })),
+    items: SEED_ITEMS.map(s => ({ id: uid(), base: s.nome, ...s })),
+    catalogo: SEED_ITEMS.map(s => s.nome),
     lotes: [],
     movs: [],
     codigos: {},
@@ -46,7 +47,35 @@ function migrar(s) {
   s.codigos ??= {};
   if ((s.versao || 1) < 4) migrarBasePorPessoa(s);
   s.versao = 4;
+  for (const it of s.items) {
+    // aviso maior que 1 ano era a validade do produto digitada no campo errado
+    if (it.avisoDias > 365) { it.vidaMeses ??= Math.round(it.avisoDias / 30.4); it.avisoDias = null; }
+  }
+  if (s.config.avisoDias > 365) s.config.avisoDias = 60;
+  sincronizarCatalogo(s);
   return s;
+}
+
+// cada item do catálogo entra uma vez; item renomeado continua ligado a ele (campo base), com o guia.
+// Um item criado à mão com nome parecido ("Repelente de insetos") é ligado em vez de duplicar.
+// Item do catálogo que o usuário excluiu não volta: o nome fica em s.catalogo.
+function sincronizarCatalogo(s) {
+  const norm = t => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  s.catalogo ??= [];
+  for (const it of s.items) if (!it.base && SEED_ITEMS.some(x => x.nome === it.nome)) it.base = it.nome;
+  for (const base of SEED_ITEMS) {
+    if (s.catalogo.includes(base.nome)) continue;
+    s.catalogo.push(base.nome);
+    if (s.items.some(i => i.base === base.nome)) continue;
+    const parecido = s.items.find(i => !i.base && norm(i.nome).startsWith(norm(base.nome)));
+    if (parecido) { parecido.base = base.nome; continue; }
+    s.items.push({ id: uid(), base: base.nome, ...base });
+  }
+  for (const m of s.familia.mochila) {
+    if (m.itemId && s.items.some(i => i.id === m.itemId)) continue;
+    const ligado = SEED_MOCHILA.find(x => x.nome === m.nome)?.estoque;
+    if (ligado) m.itemId = s.items.find(i => i.base === ligado || i.nome === ligado)?.id || null;
+  }
 }
 
 // v4: itens do catálogo passam a ter base por pessoa; os criados pelo usuário viram metas por casa,
@@ -71,14 +100,7 @@ function migrarBasePorPessoa(s) {
   const agua = s.items.find(i => i.nome === "Água potável (garrafas)");
   if (agua && s.config.litrosDia && s.config.litrosDia !== 4) agua.qtd = s.config.litrosDia;
   delete s.config.litrosDia;
-  for (const base of SEED_ITEMS) {
-    if (!s.items.some(i => i.nome === base.nome)) s.items.push({ id: uid(), ...base });
-  }
-  for (const m of s.familia.mochila) {
-    if (m.itemId) continue;
-    const ligado = SEED_MOCHILA.find(x => x.nome === m.nome)?.estoque;
-    if (ligado) m.itemId = s.items.find(i => i.nome === ligado)?.id || null;
-  }
+  sincronizarCatalogo(s);
   const nomes = s.familia.mochila.map(m => m.nome);
   for (const m of SEED_MOCHILA) {
     if (!nomes.includes(m.nome)) s.familia.mochila.push({ id: uid(), nome: m.nome, itemId: s.items.find(i => i.nome === m.estoque)?.id || null, ok: false });
@@ -105,7 +127,16 @@ function save() {
 const item = id => state.items.find(i => i.id === id);
 const pessoa = id => state.familia.pessoas.find(p => p.id === id);
 const contato = id => state.familia.contatos.find(c => c.id === id);
-const guiaDe = it => GUIAS[it?.nome];
+const guiaDe = it => GUIAS[it?.base] || GUIAS[it?.nome];
+const itemPorNome = n => state.items.find(i => i.base === n) || state.items.find(i => i.nome === n);
+
+// validade sugerida na entrada: hoje + validade típica do item
+function validadeSugerida(it) {
+  if (!it?.validade || !(it.vidaMeses > 0)) return "";
+  const d = new Date();
+  d.setMonth(d.getMonth() + Math.round(it.vidaMeses));
+  return d.toISOString().slice(0, 10);
+}
 
 // ---------- metas pela família ----------
 // com fichas cadastradas, a família é contada por elas; sem fichas, vale o número em Sistema
@@ -499,7 +530,7 @@ function viewItem(id) {
     ${it.dica ? `<p class="sub">${esc(it.dica)}</p>` : ""}
     ${guiaHtml(it)}
     <p class="sub">Base: ${textoBase(it)}${porDia(it) ? ` · a casa consome ${fmtQtd(Math.round(consumoDia(it) * 100) / 100, it.unidade)} por dia` : ""}</p>
-    <p class="sub">Alertas: ${it.validade ? `avisa ${avisoDe(it)} dias antes de vencer · ` : ""}${temMinimo(it) ? `avisa abaixo de ${fmtQtd(it.minimo, it.unidade)}` : "avisa abaixo da meta"}</p>
+    <p class="sub">Alertas: ${it.validade ? `${it.vidaMeses ? `validade típica ${it.vidaMeses} ${it.vidaMeses === 1 ? "mês" : "meses"} · ` : ""}avisa ${avisoDe(it)} dias antes de vencer · ` : ""}${temMinimo(it) ? `avisa abaixo de ${fmtQtd(it.minimo, it.unidade)}` : "avisa abaixo da meta"}</p>
 
     <div class="grid3">
       ${DEGRAUS.map((d, i) => `<div class="tile ${i === state.config.degrau ? "atual" : ""}"><span class="lbl">Meta ${d}</span><b class="sm">${metaDe(it, i) ? fmtQtd(metaDe(it, i), it.unidade) : "—"}</b></div>`).join("")}
@@ -548,7 +579,7 @@ function valorItem(it) {
   const comPreco = lotes.filter(l => precoLote(l, it) != null);
   const total = comPreco.reduce((s, l) => s + l.qtd * precoLote(l, it), 0);
   if (!lotes.length) return ref != null ? `<span class="sub">${fmtReais(ref)}/${esc(it.unidade)}</span>` : "";
-  return `<span class="sub">${comPreco.length ? fmtReais(total) : "sem preço"}${ref != null ? ` · ${fmtReais(ref)}/${esc(it.unidade)}` : ""}</span>`;
+  return `<span class="sub">${comPreco.length ? fmtReais(total) : "sem preço"}${ref != null ? ` · ref. ${fmtReais(ref)}/${esc(it.unidade)}` : ""}</span>`;
 }
 
 function guiaHtml(it) {
@@ -593,7 +624,8 @@ function viewEntrada(id) {
         <label>Unidade<input id="eUn" value="${esc(it?.unidade || "")}" disabled></label>
       </div>
       <label id="eSpecWrap">${specLabel(it)}<input id="eSpec" value="${esc(it ? ultimaSpec(it.id) : "")}" placeholder="${esc(specPlaceholder(it))}"></label>
-      <label id="eValWrap" ${it && !it.validade ? "hidden" : ""}>Validade<input id="eVal" type="date"></label>
+      <label id="eValWrap" ${it && !it.validade ? "hidden" : ""}>Validade<input id="eVal" type="date" value="${validadeSugerida(it)}"></label>
+      <p class="sub" id="eValInfo" ${validadeSugerida(it) ? "" : "hidden"}>Sugerida pela validade típica do item. Confira a data na embalagem.</p>
       <label>Marca <span class="opt">(opcional)</span><input id="eMarca" placeholder="Ex.: Tio João"></label>
       <label>Preço pago, total <span class="opt">(opcional)</span><input id="ePreco" type="number" inputmode="decimal" step="0.01" min="0" placeholder="R$"></label>
       <p class="sub" id="ePrecoInfo">${it && precoRef(it) != null && it.unidade !== "R$" ? `Último preço: ${fmtReais(precoRef(it))}/${esc(it.unidade)}` : ""}</p>
@@ -641,12 +673,14 @@ function viewEditar(id) {
         <p class="sub">Na unidade do item. Com fichas, conta pessoas, adultos (12 anos ou mais) e bebês (até 2 anos) da Família. Hoje: ${nPessoas()} pessoas, ${nAdultos()} adultos, ${nBebes()} ${nBebes() === 1 ? "bebê" : "bebês"}.</p>
       </fieldset>
       <label class="check"><input id="iVal" type="checkbox" ${it.validade ? "checked" : ""}> Tem data de validade</label>
+      <label>Validade típica, em meses <span class="opt">(opcional)</span><input id="iVida" type="number" inputmode="numeric" min="0" step="1" placeholder="Ex.: 36 para 3 anos" value="${it.vidaMeses ?? ""}"></label>
+      <p class="sub">Quanto o produto costuma durar depois de comprado. A Entrada já sugere a data de validade com isso.</p>
       <fieldset><legend>Alertas deste item</legend>
         <div class="row2">
-          <label>Avisar quantos dias antes de vencer<input id="iAviso" type="number" inputmode="numeric" min="0" placeholder="padrão: ${state.config.avisoDias}" value="${it.avisoDias ?? ""}"></label>
+          <label>Avisar com quantos dias de antecedência<input id="iAviso" type="number" inputmode="numeric" min="0" max="365" placeholder="padrão: ${state.config.avisoDias}" value="${it.avisoDias ?? ""}"></label>
           <label>Avisar quando ficar abaixo de<input id="iMin" type="number" inputmode="decimal" step="any" min="0" placeholder="padrão: a meta" value="${it.minimo ?? ""}"></label>
         </div>
-        <p class="sub">Deixe em branco para usar o padrão. Com um mínimo, o item fica amarelo abaixo da meta e vermelho abaixo do mínimo.</p>
+        <p class="sub">Deixe em branco para usar o padrão. O aviso é quantos dias antes do vencimento o item fica amarelo (ex.: 60), não a validade do produto. Com um mínimo, o item fica amarelo abaixo da meta e vermelho abaixo do mínimo.</p>
       </fieldset>
       ${it.unidade === "R$" ? "" : `<label>Preço de referência por ${esc(it.unidade)} <span class="opt">(opcional)</span><input id="iPreco" type="number" inputmode="decimal" step="0.01" min="0" value="${it.precoRef ?? ""}" placeholder="${id && precoRef(it) != null ? "último pago: " + precoRef(it).toLocaleString("pt-BR") : "R$"}"></label>
       <p class="sub">Vale para o que está em casa sem preço registrado e para estimar a lista de compras. Em branco, usa o último preço pago.</p>`}
@@ -920,7 +954,7 @@ function viewCartao(id) {
 // ---------- guias de crise ----------
 
 function criseHtml(c) {
-  const its = c.estoque.map(n => state.items.find(i => i.nome === n)).filter(Boolean);
+  const its = c.estoque.map(itemPorNome).filter(Boolean);
   const kids = c.criancas ? state.familia.pessoas.filter(p => { const n = idade(p.nascimento); return n !== null && n < 12; }) : [];
   return `<article class="crise stack">
     <h1>${esc(c.titulo)}</h1>
@@ -1021,6 +1055,8 @@ document.addEventListener("change", e => {
     if (e.isTrusted) { document.getElementById("eCod").value = ""; document.getElementById("eCodInfo").hidden = true; }
     document.getElementById("eUn").value = it?.unidade || "";
     document.getElementById("eValWrap").hidden = it ? !it.validade : false;
+    document.getElementById("eVal").value = validadeSugerida(it);
+    document.getElementById("eValInfo").hidden = !validadeSugerida(it);
     const pi = document.getElementById("ePrecoInfo");
     pi.textContent = it && precoRef(it) != null && it.unidade !== "R$" ? `Último preço: ${fmtReais(precoRef(it))}/${it.unidade}` : "";
     const w = document.getElementById("eSpecWrap");
@@ -1090,10 +1126,12 @@ document.addEventListener("submit", e => {
       spec: document.getElementById("iSpec").value.trim(),
       dica: document.getElementById("iDica").value.trim(),
       avisoDias: campoOpcional("iAviso"),
+      vidaMeses: campoOpcional("iVida"),
       minimo: campoOpcional("iMin"),
       precoRef: document.getElementById("iPreco") ? campoOpcional("iPreco") : null,
     };
     if (!dados.nome) return toast("Dê um nome ao item.");
+    if (dados.avisoDias > 365) return toast("O aviso vai até 365 dias. A validade do produto vai em Validade típica.");
     let id = f.dataset.id;
     if (id) Object.assign(item(id), dados);
     else { id = uid(); state.items.push({ id, ...dados }); }
@@ -1141,7 +1179,9 @@ document.addEventListener("submit", e => {
 
   if (f.id === "fCfg") {
     if (!state.familia.pessoas.length) state.config.pessoas = Math.max(1, Math.round(num("cPessoas")) || 5);
-    state.config.avisoDias = campoOpcional("cAviso") ?? 60;
+    const aviso = campoOpcional("cAviso") ?? 60;
+    if (aviso > 365) return toast("O aviso vai até 365 dias antes do vencimento.");
+    state.config.avisoDias = aviso;
     save(); toast("Configuração salva");
   }
 });

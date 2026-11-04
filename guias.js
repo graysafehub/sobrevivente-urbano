@@ -24,6 +24,83 @@ window.FONTES = {
 };
 
 window.GUIAS = {
+  "Copos, pratos e talheres descartáveis": {
+    escolher: "Copos, pratos e talheres descartáveis, ou de plástico duro reutilizável. Sem água encanada, lavar louça gasta a reserva de beber; o Ready.gov põe pratos, copos e talheres de papel ou plástico no kit.",
+    quanto: "Por casa: 1 pacote para 3 dias e 1 semana, 2 para 2 semanas.",
+    armazenar: "Na embalagem, junto da comida, longe de umidade.",
+    preparar: "",
+    fontes: ["readyKit"],
+  },
+  "Fórmula infantil": {
+    escolher: "Só se o bebê toma fórmula: a mesma marca e fase que ele já usa, indicada pelo pediatra. Trocar de fórmula às pressas pode dar recusa ou diarreia. Leite de vaca não substitui fórmula. O Ready.gov põe a fórmula na lista de itens para bebês.",
+    quanto: "Base: 1 lata por bebê por semana. Estimativa: uma lata de 800 g dura cerca de uma semana para um bebê que só toma fórmula; dura mais se ele mama no peito ou já come. Ajuste em Editar pelo que a lata dele dura; se ele mama só no peito, ponha 0.",
+    armazenar: "Fechada, em lugar seco e fresco, dentro da validade. Depois de aberta vale o prazo do rótulo, com a tampa bem fechada e a colher seca. Prepare só com água fervida ou mineral, na medida da lata: conte essa água na reserva.",
+    preparar: "",
+    fontes: ["readyKit"],
+  },
+  "Carregador e cabo de celular": {
+    escolher: "Um cabo reserva para cada celular, com o conector certo (USB-C, Lightning), e um carregador de tomada. Um carregador de carro ajuda a carregar quando falta luz. O Ready.gov põe carregadores e bateria reserva no kit.",
+    quanto: "Base: 1 por adulto (12 anos ou mais), o mesmo número dos power banks.",
+    armazenar: "Junto do power bank, com o cabo enrolado sem dobras fortes, que quebram o fio por dentro.",
+    preparar: "Teste o cabo no celular e no power bank antes de guardar.",
+    fontes: ["readyKit"],
+  },
+  "Analgésico adulto": {
+    escolher: "O analgésico e antitérmico que os adultos da casa já usam e toleram, de venda sem receita. Quem tem alergia, doença do fígado, dos rins ou do estômago, está grávida ou toma outros remédios: confirme com o médico ou o farmacêutico qual pode. O Ready.gov põe analgésicos entre os remédios sem receita do kit.",
+    quanto: "Por casa: uma caixa fechada na reserva, além da que está em uso.",
+    armazenar: "Na embalagem original, com a bula, longe de calor, umidade e luz: banheiro e cozinha não são bons lugares. Fora do alcance das crianças. Respeite a validade da caixa.",
+    preparar: "",
+    fontes: ["readyKit"],
+  },
+  "Água sanitária (sem perfume)": {
+    escolher: "Água sanitária comum, sem perfume e sem alvejante, com registro na Anvisa. É para limpar e desinfetar a casa depois de enchente. Para a água de beber, use o hipoclorito 2,5% da lista, de farmácia ou posto de saúde, que vem com a dose no rótulo.",
+    quanto: "Por casa: 1 frasco de 2 L para 3 dias e 1 semana, 2 para 2 semanas. Depois de uma enchente, o Ministério da Saúde manda usar 400 ml (2 xícaras) em cada balde de 20 L de água, e um cômodo pede vários baldes.",
+    armazenar: "Fechada, no frasco original, longe do sol e do calor: o cloro se perde com o tempo, por isso respeite a validade. Fora do alcance das crianças. Nunca misture com outros produtos de limpeza: com amoníaco ou ácidos ela solta gás tóxico.",
+    preparar: "",
+    fontes: ["msEnchentes"],
+  },
+  "Luvas de borracha (par)": {
+    escolher: "Luvas grossas de borracha, de cano longo, para limpar lama e entulho. A água e a lama da enchente estão contaminadas, e o Ministério da Saúde manda limpar de botas e luvas; na falta, sacos plásticos duplos amarrados nas mãos.",
+    quanto: "Base: 1 par por adulto (12 anos ou mais), quem faz a limpeza.",
+    armazenar: "Secas, longe do sol, que resseca a borracha.",
+    preparar: "",
+    fontes: ["msEnchentes"],
+  },
+  "Botas de borracha (par)": {
+    escolher: "Botas de borracha de cano alto, no número de cada adulto. Protegem de cortes com entulho e do contato com a água e a lama da enchente, que estão contaminadas.",
+    quanto: "Base: 1 par por adulto (12 anos ou mais).",
+    armazenar: "Em lugar seco, de boca para baixo ou com jornal dentro, longe do sol.",
+    preparar: "",
+    fontes: ["msEnchentes"],
+  },
+  "Cópias dos documentos": {
+    escolher: "Cópias em papel de RG, CPF, certidões, cartão do SUS e do plano de saúde, receitas e laudos de quem toma remédio contínuo, e uma lista de telefones. O app não guarda números de documento: as cópias ficam só no papel.",
+    quanto: "Por casa: um jogo com as cópias de todos.",
+    armazenar: "Em saco plástico com fecho (zip), dentro da mochila ou junto do dinheiro. A Defesa Civil orienta guardar documentos em sacos plásticos bem fechados, em lugar alto.",
+    preparar: "Revise uma vez por ano e sempre que um documento ou receita mudar.",
+    fontes: ["readyKit", "dcChuvas"],
+  },
+  "Cobertor ou manta": {
+    escolher: "Um cobertor ou manta por pessoa, para dormir fora de casa (abrigo, casa de parente) ou passar frio sem energia. Manta térmica aluminizada ocupa pouco espaço na mochila. O Ready.gov põe um cobertor ou saco de dormir por pessoa no kit.",
+    quanto: "Base: 1 por pessoa.",
+    armazenar: "Em saco plástico fechado, contra umidade e mofo.",
+    preparar: "",
+    fontes: ["readyKit"],
+  },
+  "Lona plástica e fita adesiva": {
+    escolher: "Lona plástica grossa (4 × 4 m ou maior) e um rolo de fita adesiva larga, tipo silver tape. Servem para cobrir telhado ou janela quebrados por vendaval e proteger móveis e documentos da chuva. O Ready.gov põe lona e fita no kit básico.",
+    quanto: "Por casa: 1 lona e 1 rolo de fita.",
+    armazenar: "Dobrada, em lugar seco. A fita resseca com calor: guarde longe do sol.",
+    preparar: "",
+    fontes: ["readyKit"],
+  },
+  "Alicate ou chave inglesa": {
+    escolher: "Um alicate universal ou uma chave inglesa, para fechar o registro do gás e da água quando a mão não dá conta. O Ready.gov põe a ferramenta no kit para desligar esses serviços.",
+    quanto: "Por casa: 1.",
+    armazenar: "Junto do kit, longe da umidade.",
+    preparar: "Saiba antes onde ficam o registro geral da água, o registro do gás e o quadro de energia, e teste se fecham.",
+    fontes: ["readyKit"],
+  },
   "Pano ou coador para filtrar água": {
     escolher: "Coador de pano de algodão ou filtros de papel de café. Servem para tirar a sujeira visível antes de ferver ou tratar com hipoclorito: cloro funciona mal em água turva.",
     quanto: "Por casa: um pano e um pacote de filtros de papel.",
