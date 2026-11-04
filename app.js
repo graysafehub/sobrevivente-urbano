@@ -428,8 +428,13 @@ function viewPainel() {
       }).join("")}</ul>
     </div>` : ""}
 
+    <div class="card flush">
+      <h2><span class="mod">03</span> · Guias de crise</h2>
+      <ul class="rows">${CRISES.map(c => `<li><a href="#crise/${c.id}"><span class="grow nm">${esc(c.titulo)}</span><span aria-hidden="true">›</span></a></li>`).join("")}</ul>
+    </div>
+
     <div class="card">
-      <h2><span class="mod">03</span> · Registro</h2>
+      <h2><span class="mod">04</span> · Registro</h2>
       ${log.length ? `<ul class="log">${log.map(m => {
         const it = item(m.itemId);
         const [rot, cls, s] = sinal[m.tipo] || [m.tipo.toUpperCase(), "neg", "−"];
@@ -704,6 +709,7 @@ function viewMais() {
       <h2>Versão em papel</h2>
       <p class="sub">Imprima uma vez por mês e guarde na mochila. Funciona mesmo sem bateria.</p>
       <a class="btn ghost" href="#imprimir">Abrir versão para imprimir</a>
+      <a class="btn ghost" href="#crise/todos">Imprimir os guias de crise</a>
     </div>
 
     <form class="card form" id="fCfg">
@@ -911,6 +917,52 @@ function viewCartao(id) {
   </section>`;
 }
 
+// ---------- guias de crise ----------
+
+function criseHtml(c) {
+  const its = c.estoque.map(n => state.items.find(i => i.nome === n)).filter(Boolean);
+  const kids = c.criancas ? state.familia.pessoas.filter(p => { const n = idade(p.nascimento); return n !== null && n < 12; }) : [];
+  return `<article class="crise stack">
+    <h1>${esc(c.titulo)}</h1>
+    <p class="sub">${esc(c.resumo)}</p>
+    ${its.length ? `<div class="card flush"><h2>No seu estoque</h2><ul class="rows">${its.map(i => {
+      const s = situacao(i);
+      return `<li><a href="#item/${i.id}"><span class="dot ${s.cor}"></span><span class="grow nm">${esc(i.nome)}</span>
+        <span class="qty">${fmtQtd(qtdValida(i.id), i.unidade)}<span class="sub"> / ${fmtQtd(metaDe(i, state.config.degrau), i.unidade)}</span></span></a></li>`;
+    }).join("")}</ul></div>` : ""}
+    ${kids.length ? `<div class="card"><h2>Crianças da casa</h2><ul class="plain">${kids.map(p => `<li><b>${esc(p.nome)}</b> · ${fmtIdade(p.nascimento)}${p.alergias ? ` · <span class="spec">alergia: ${esc(p.alergias)}</span>` : ""}${p.remedios ? ` · remédio: ${esc(p.remedios)}` : ""}${p.medico ? ` · ${esc(p.medico)}` : ""}</li>`).join("")}</ul>
+      <p class="sub">Dose do antitérmico: a que o pediatra indicou pelo peso, anotada na caixa.</p></div>` : ""}
+    ${c.secoes.map(s => `<section class="card ${s.alerta ? "alerta" : ""}">
+      <h2>${esc(s.titulo)}</h2>
+      <ul class="passos">${s.passos.map(p => `<li>${esc(p)}</li>`).join("")}</ul>
+    </section>`).join("")}
+    <div class="card"><h2>Fontes</h2><ul class="fontes">${c.fontes.map(f => FONTES[f]).filter(Boolean).map(f =>
+      `<li><a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.nome)}</a></li>`).join("")}</ul></div>
+  </article>`;
+}
+
+function viewCrises() {
+  return `
+  <section class="stack">
+    <h1>Guias de crise</h1>
+    <p class="sub">Consulta rápida, funciona sem internet. Emergência: SAMU 192 · Bombeiros 193 · Defesa Civil 199 · Polícia 190.</p>
+    <div class="card flush"><ul class="rows">${CRISES.map(c => `<li><a href="#crise/${c.id}">
+      <span class="grow"><span class="nm">${esc(c.titulo)}</span><span class="sub">${esc(c.resumo)}</span></span><span aria-hidden="true">›</span>
+    </a></li>`).join("")}</ul></div>
+    <a class="btn ghost" href="#crise/todos">Imprimir todos os guias</a>
+  </section>`;
+}
+
+function viewCrise(id) {
+  const lista = id === "todos" ? CRISES : CRISES.filter(c => c.id === id);
+  if (!lista.length) return `<p class="empty">Guia não encontrado.</p>`;
+  return `
+  <section class="stack">
+    <div class="noprint actions"><a class="btn ghost" href="#crises">‹ Guias</a><button class="btn" id="bPrint" type="button">Imprimir</button></div>
+    ${lista.map(criseHtml).join(`<hr class="quebra">`)}
+  </section>`;
+}
+
 // ---------- roteador ----------
 
 function render() {
@@ -927,14 +979,16 @@ function render() {
     compras: () => viewCompras(),
     mais: () => viewMais(),
     imprimir: () => viewImprimir(),
+    crises: () => viewCrises(),
+    crise: () => viewCrise(arg),
     familia: () => viewFamilia(),
     pessoa: () => viewPessoa(arg),
     contato: () => viewContato(arg),
     cartao: () => viewCartao(arg),
   };
   $view.innerHTML = (telas[rota] || telas.painel)();
-  document.body.classList.toggle("printing", rota === "imprimir" || rota === "cartao");
-  const ativa = { item: "estoque", editar: "estoque", novo: "estoque", saida: "estoque", imprimir: "mais", pessoa: "familia", contato: "familia", cartao: "familia" }[rota] || rota;
+  document.body.classList.toggle("printing", ["imprimir", "cartao", "crise"].includes(rota));
+  const ativa = { item: "estoque", editar: "estoque", novo: "estoque", saida: "estoque", imprimir: "mais", crises: "painel", crise: "painel", pessoa: "familia", contato: "familia", cartao: "familia" }[rota] || rota;
   document.querySelectorAll(".tabbar a").forEach(a => a.classList.toggle("on", a.dataset.route === ativa));
   window.scrollTo(0, 0);
   if (rota === "mais") mostrarPersistencia();
