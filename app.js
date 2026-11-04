@@ -14,12 +14,12 @@ function uid() {
 
 function seedState() {
   const s = {
-    versao: 3,
+    versao: 4,
     items: SEED_ITEMS.map(s => ({ id: uid(), ...s })),
     lotes: [],
     movs: [],
     codigos: {},
-    config: { degrau: 0, pessoas: 5, litrosDia: 4, avisoDias: 60, ultimoBackup: null },
+    config: { degrau: 0, pessoas: 5, avisoDias: 60, ultimoBackup: null },
   };
   s.familia = seedFamilia(s.items);
   return s;
@@ -41,12 +41,48 @@ function migrar(s) {
   for (const it of s.items) {
     const base = SEED_ITEMS.find(x => x.nome === it.nome);
     if (it.spec === undefined) it.spec = base?.spec || "";
-    if (it.escala === undefined) it.escala = base?.escala || "fixo";
   }
   s.familia ??= seedFamilia(s.items);
   s.codigos ??= {};
-  s.versao = 3;
+  if ((s.versao || 1) < 4) migrarBasePorPessoa(s);
+  s.versao = 4;
   return s;
+}
+
+// v4: itens do catálogo passam a ter base por pessoa; os criados pelo usuário viram metas por casa,
+// com os números que já valiam para a família de hoje. Itens novos do catálogo entram na lista.
+function migrarBasePorPessoa(s) {
+  const f = s.familia.pessoas;
+  const pessoas = f.length || s.config.pessoas;
+  const bebes = f.length ? f.filter(p => { const n = idade(p.nascimento); return n !== null && n < 3; }).length : 1;
+  for (const it of s.items) {
+    const base = SEED_ITEMS.find(x => x.nome === it.nome);
+    if (base) {
+      it.escala = base.escala;
+      it.qtd = base.qtd ?? null;
+      it.metas = base.metas || [0, 0, 0];
+    } else {
+      const fator = it.escala === "pessoa" ? pessoas / 5 : it.escala === "bebe" ? bebes : 1;
+      it.metas = it.metas.map(m => arredMeta((m || 0) * fator, it.unidade));
+      it.escala = "casa";
+      it.qtd = null;
+    }
+  }
+  const agua = s.items.find(i => i.nome === "Água potável (garrafas)");
+  if (agua && s.config.litrosDia && s.config.litrosDia !== 4) agua.qtd = s.config.litrosDia;
+  delete s.config.litrosDia;
+  for (const base of SEED_ITEMS) {
+    if (!s.items.some(i => i.nome === base.nome)) s.items.push({ id: uid(), ...base });
+  }
+  for (const m of s.familia.mochila) {
+    if (m.itemId) continue;
+    const ligado = SEED_MOCHILA.find(x => x.nome === m.nome)?.estoque;
+    if (ligado) m.itemId = s.items.find(i => i.nome === ligado)?.id || null;
+  }
+  const nomes = s.familia.mochila.map(m => m.nome);
+  for (const m of SEED_MOCHILA) {
+    if (!nomes.includes(m.nome)) s.familia.mochila.push({ id: uid(), nome: m.nome, itemId: s.items.find(i => i.nome === m.estoque)?.id || null, ok: false });
+  }
 }
 
 function load() {
@@ -81,22 +117,48 @@ function nBebes() {
   if (!f.length) return BASE_FAMILIA.bebes;
   return f.filter(p => { const n = idade(p.nascimento); return n !== null && n < 3; }).length;
 }
-function fatorMeta(it) {
-  if (it.escala === "pessoa") return nPessoas() / BASE_FAMILIA.pessoas;
-  if (it.escala === "bebe") return nBebes() / BASE_FAMILIA.bebes;
-  return 1;
+// adulto = 12 anos ou mais; ficha sem nascimento conta como adulto
+function nAdultos() {
+  const f = state.familia.pessoas;
+  if (!f.length) return Math.min(BASE_FAMILIA.adultos, state.config.pessoas);
+  return f.filter(p => { const n = idade(p.nascimento); return n === null || n >= 12; }).length;
 }
-// arredonda para cima: unidades inteiras, dinheiro de 10 em 10, peso e volume de 0,1 em 0,1
+const ESCALAS = {
+  "pessoa-dia": "por pessoa, por dia",
+  "adulto-dia": "por adulto (12+), por dia",
+  "bebe-dia": "por bebê (até 2 anos), por dia",
+  "pessoa": "por pessoa",
+  "adulto": "por adulto (12+)",
+  "casa": "por casa (meta de cada degrau)",
+};
+const porDia = it => it.escala?.endsWith("-dia");
+function multiplicador(it) {
+  const tipo = (it.escala || "casa").replace("-dia", "");
+  return { pessoa: nPessoas(), adulto: nAdultos(), bebe: nBebes() }[tipo] ?? 1;
+}
+// quanto a casa consome por dia (só itens de consumo diário)
+function consumoDia(it) {
+  return porDia(it) ? (it.qtd || 0) * multiplicador(it) : null;
+}
+// arredonda para cima: unidades inteiras (sobra de até 0,1 não arredonda), dinheiro de 10 em 10,
+// peso e volume de 0,1 em 0,1
 function arredMeta(v, un) {
   if (!v) return 0;
-  if (["un", "pct", "rolo"].includes(un)) return Math.ceil(v - 1e-9);
+  if (["un", "pct", "rolo"].includes(un)) return Math.max(1, Math.ceil(v - 0.1));
   if (un === "R$") return Math.ceil(v / 10 - 1e-9) * 10;
   return Math.ceil(v * 10 - 1e-9) / 10;
 }
 function metaDe(it, d) {
-  return arredMeta((it.metas[d] || 0) * fatorMeta(it), it.unidade);
+  if (!it.escala || it.escala === "casa") return arredMeta(it.metas?.[d] || 0, it.unidade);
+  const v = (it.qtd || 0) * multiplicador(it) * (porDia(it) ? DIAS[d] : 1);
+  return arredMeta(v, it.unidade);
 }
-const ESCALAS = { pessoa: "cada pessoa", bebe: "cada bebê (até 2 anos)", fixo: "não muda com a família" };
+// texto da base: "0,08 kg por pessoa, por dia"
+function textoBase(it) {
+  if (!it.escala || it.escala === "casa") return "meta fixa por casa";
+  const q = Math.round((it.qtd || 0) * 1000) / 1000;
+  return `${fmtQtd(q, it.unidade)} ${ESCALAS[it.escala]}`;
+}
 
 // ---------- datas e cálculos ----------
 
@@ -267,13 +329,12 @@ const SUPPLY = [
 ];
 function diasCategoria(cat) {
   const c = state.config;
-  if (cat === "Água") {
-    const agua = state.items.find(i => i.nome.startsWith("Água potável"));
-    return Math.floor((agua ? qtdValida(agua.id) : 0) / (nPessoas() * c.litrosDia));
-  }
-  const its = state.items.filter(i => i.categoria === cat && metaDe(i, 2) > 0);
+  // com itens de consumo diário, a categoria é medida por eles (estoque ÷ consumo da casa por dia);
+  // sem eles (energia), pela proporção da meta de 2 semanas
+  const doDia = state.items.filter(i => i.categoria === cat && consumoDia(i) > 0);
+  const its = doDia.length ? doDia : state.items.filter(i => i.categoria === cat && metaDe(i, 2) > 0);
   if (!its.length) return null;
-  const ds = its.map(i => Math.min(qtdValida(i.id) / (metaDe(i, 2) / 14), 14));
+  const ds = its.map(i => Math.min(porDia(i) ? qtdValida(i.id) / consumoDia(i) : qtdValida(i.id) / metaDe(i, 2) * 14, 14));
   return Math.floor(ds.reduce((s, d) => s + d, 0) / ds.length);
 }
 
@@ -328,7 +389,7 @@ function viewPainel() {
           <span class="scale"><span style="left:0">0</span><span style="left:${3 / 14 * 100}%">3</span><span style="left:50%">7</span><span style="right:0">14</span></span>
         </div>
       </div>
-      <p class="sub">Água pelo consumo de ${nPessoas()} pessoas × ${c.litrosDia} L. Demais: estimativa pelas metas de 2 semanas.</p>
+      <p class="sub">${nPessoas()} pessoas. Água, comida e higiene pelo consumo diário de cada item; demais itens pela meta de 2 semanas.</p>
     </div>
 
     <div class="grid3">
@@ -432,6 +493,7 @@ function viewItem(id) {
     <div class="head"><h1>${esc(it.nome)}</h1><span class="badge ${s.cor}">${s.motivo}</span></div>
     ${it.dica ? `<p class="sub">${esc(it.dica)}</p>` : ""}
     ${guiaHtml(it)}
+    <p class="sub">Base: ${textoBase(it)}${porDia(it) ? ` · a casa consome ${fmtQtd(Math.round(consumoDia(it) * 100) / 100, it.unidade)} por dia` : ""}</p>
     <p class="sub">Alertas: ${it.validade ? `avisa ${avisoDe(it)} dias antes de vencer · ` : ""}${temMinimo(it) ? `avisa abaixo de ${fmtQtd(it.minimo, it.unidade)}` : "avisa abaixo da meta"}</p>
 
     <div class="grid3">
@@ -555,7 +617,7 @@ function viewSaida(id) {
 }
 
 function viewEditar(id) {
-  const it = id ? item(id) : { nome: "", categoria: "Comida", unidade: "un", metas: [0, 0, 0], escala: "fixo", validade: true, dica: "" };
+  const it = id ? item(id) : { nome: "", categoria: "Comida", unidade: "un", metas: [0, 0, 0], escala: "casa", qtd: null, validade: true, dica: "" };
   if (!it) return `<p class="empty">Item não encontrado.</p>`;
   return `
   <section class="stack">
@@ -567,9 +629,11 @@ function viewEditar(id) {
         <label>Categoria<select id="iCat">${CATEGORIAS.map(c => `<option ${c === it.categoria ? "selected" : ""}>${c}</option>`).join("")}</select></label>
         <label>Unidade<select id="iUn">${UNIDADES.map(u => `<option ${u === it.unidade ? "selected" : ""}>${u}</option>`).join("")}</select></label>
       </div>
-      <fieldset><legend>Metas para ${nPessoas()} pessoas</legend>
-        <div class="row3">${DEGRAUS.map((d, i) => `<label>${d}<input id="iM${i}" type="number" inputmode="decimal" step="any" min="0" value="${metaDe(it, i)}"></label>`).join("")}</div>
-        <label>A meta cresce com<select id="iEsc">${Object.entries(ESCALAS).map(([k, t]) => `<option value="${k}" ${k === (it.escala || "fixo") ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+      <fieldset><legend>Meta</legend>
+        <label>Como calcular<select id="iEsc">${Object.entries(ESCALAS).map(([k, t]) => `<option value="${k}" ${k === (it.escala || "casa") ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+        <label id="iQtdWrap" ${(it.escala || "casa") === "casa" ? "hidden" : ""}>Quantidade<input id="iQtd" type="number" inputmode="decimal" step="any" min="0" value="${it.qtd != null ? Math.round(it.qtd * 1000) / 1000 : ""}"></label>
+        <div class="row3" id="iMetasWrap" ${(it.escala || "casa") === "casa" ? "" : "hidden"}>${DEGRAUS.map((d, i) => `<label>${d}<input id="iM${i}" type="number" inputmode="decimal" step="any" min="0" value="${it.metas?.[i] || 0}"></label>`).join("")}</div>
+        <p class="sub">Na unidade do item. Com fichas, conta pessoas, adultos (12 anos ou mais) e bebês (até 2 anos) da Família. Hoje: ${nPessoas()} pessoas, ${nAdultos()} adultos, ${nBebes()} ${nBebes() === 1 ? "bebê" : "bebês"}.</p>
       </fieldset>
       <label class="check"><input id="iVal" type="checkbox" ${it.validade ? "checked" : ""}> Tem data de validade</label>
       <fieldset><legend>Alertas deste item</legend>
@@ -646,7 +710,6 @@ function viewMais() {
       <h2>Família e alertas</h2>
       <div class="row2">
         <label>Pessoas na casa<input id="cPessoas" type="number" min="1" value="${nPessoas()}" ${state.familia.pessoas.length ? "disabled" : ""}></label>
-        <label>Litros de água por pessoa/dia<input id="cLitros" type="number" min="1" step="0.5" value="${c.litrosDia}"></label>
       </div>
       ${state.familia.pessoas.length ? `<p class="sub">Pessoas contadas pelas fichas em Família.</p>` : ""}
       <label>Aviso padrão de validade (dias antes)<input id="cAviso" type="number" min="0" value="${c.avisoDias}"></label>
@@ -738,7 +801,7 @@ function viewFamilia() {
         ${p.sangue ? `<span class="badge">${esc(p.sangue)}</span>` : ""}
       </a></li>`).join("")}</ul>` : `<p class="empty">Nenhuma ficha. Comece por quem tem alergia ou remédio de uso contínuo.</p>`}
       <p class="sub">${f.pessoas.length
-        ? `As metas do estoque são calculadas para estas ${f.pessoas.length} ${f.pessoas.length === 1 ? "pessoa" : "pessoas"}${nBebes() ? ` (${nBebes()} ${nBebes() === 1 ? "bebê" : "bebês"} até 2 anos)` : ""}. Cadastre todos da casa.`
+        ? `As metas do estoque são calculadas para estas ${f.pessoas.length} ${f.pessoas.length === 1 ? "pessoa" : "pessoas"}: ${nAdultos()} com 12 anos ou mais${nBebes() ? `, ${nBebes()} ${nBebes() === 1 ? "bebê" : "bebês"} até 2 anos` : ""}. Cadastre todos da casa.`
         : `Enquanto não houver fichas, as metas usam ${naCasa} pessoas (Sistema).`}</p>
     </div>
 
@@ -916,6 +979,10 @@ document.addEventListener("change", e => {
   }
   if (t.id === "bImport" && t.files[0]) importar(t.files[0]);
   if (t.id === "cartaoDe") location.hash = "#cartao/" + t.value;
+  if (t.id === "iEsc") {
+    document.getElementById("iQtdWrap").hidden = t.value === "casa";
+    document.getElementById("iMetasWrap").hidden = t.value !== "casa";
+  }
   if (t.dataset.mochila) {
     const m = state.familia.mochila.find(x => x.id === t.dataset.mochila);
     if (m) { m.ok = t.checked; save(); render(); }
@@ -957,16 +1024,14 @@ document.addEventListener("submit", e => {
   }
 
   if (f.id === "fItem") {
-    // a tela mostra a meta para a família atual; guarda a meta da família base
     const escala = document.getElementById("iEsc").value;
-    const fator = fatorMeta({ escala });
-    const antigas = f.dataset.id ? item(f.dataset.id).metas : [0, 0, 0];
     const dados = {
       nome: document.getElementById("iNome").value.trim(),
       categoria: document.getElementById("iCat").value,
       unidade: document.getElementById("iUn").value,
-      metas: [0, 1, 2].map(i => fator > 0 ? (num("iM" + i) || 0) / fator : antigas[i]),
+      metas: [0, 1, 2].map(i => num("iM" + i) || 0),
       escala,
+      qtd: escala === "casa" ? null : num("iQtd") || 0,
       validade: document.getElementById("iVal").checked,
       spec: document.getElementById("iSpec").value.trim(),
       dica: document.getElementById("iDica").value.trim(),
@@ -1022,7 +1087,6 @@ document.addEventListener("submit", e => {
 
   if (f.id === "fCfg") {
     if (!state.familia.pessoas.length) state.config.pessoas = Math.max(1, Math.round(num("cPessoas")) || 5);
-    state.config.litrosDia = Math.max(1, num("cLitros") || 4);
     state.config.avisoDias = campoOpcional("cAviso") ?? 60;
     save(); toast("Configuração salva");
   }
