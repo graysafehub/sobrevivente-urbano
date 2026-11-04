@@ -13,21 +13,43 @@ function uid() {
 }
 
 function seedState() {
-  return {
-    versao: 1,
+  const s = {
+    versao: 2,
     items: SEED_ITEMS.map(s => ({ id: uid(), ...s })),
     lotes: [],
     movs: [],
     config: { degrau: 0, pessoas: 5, litrosDia: 4, avisoDias: 60, ultimoBackup: null },
   };
+  s.familia = seedFamilia(s.items);
+  return s;
+}
+
+function seedFamilia(items) {
+  return {
+    endereco: "",
+    encontro: { principal: "", secundario: "" },
+    pessoas: [],
+    contatos: [],
+    mochila: SEED_MOCHILA.map(m => ({ id: uid(), nome: m.nome, itemId: items.find(i => i.nome === m.estoque)?.id || null, ok: false })),
+  };
+}
+
+// dados de versões antigas (e de backups antigos) ganham os campos novos
+function migrar(s) {
+  s.config.avisoDias ??= 60;
+  for (const it of s.items) {
+    if (it.spec === undefined) it.spec = SEED_ITEMS.find(x => x.nome === it.nome)?.spec || "";
+  }
+  s.familia ??= seedFamilia(s.items);
+  s.versao = 2;
+  return s;
 }
 
 function load() {
   try {
     const raw = localStorage.getItem(KEY);
     if (raw) {
-      state = JSON.parse(raw);
-      state.config.avisoDias ??= 60;
+      state = migrar(JSON.parse(raw));
       return;
     }
   } catch (e) {}
@@ -41,6 +63,8 @@ function save() {
 }
 
 const item = id => state.items.find(i => i.id === id);
+const pessoa = id => state.familia.pessoas.find(p => p.id === id);
+const contato = id => state.familia.contatos.find(c => c.id === id);
 
 // ---------- datas e cálculos ----------
 
@@ -60,6 +84,16 @@ function fmtData(iso) {
 function isoHoje() {
   const d = hoje();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function idade(iso) {
+  if (!iso) return null;
+  const [y, m, d] = iso.split("-").map(Number);
+  const h = hoje();
+  return h.getFullYear() - y - (h.getMonth() + 1 < m || (h.getMonth() + 1 === m && h.getDate() < d) ? 1 : 0);
+}
+function fmtIdade(iso) {
+  const n = idade(iso);
+  return n === null ? "" : n === 1 ? "1 ano" : `${n} anos`;
 }
 function horaAgora() {
   return new Date().toTimeString().slice(0, 8);
@@ -81,6 +115,15 @@ function qtdValida(itemId) {
 }
 function qtdTotal(itemId) {
   return lotesDe(itemId).reduce((s, l) => s + l.qtd, 0);
+}
+// especificações diferentes que há em casa (ex.: "10.000 mAh, 20.000 mAh")
+function specsDe(itemId) {
+  return [...new Set(lotesDe(itemId).map(l => l.spec).filter(Boolean))];
+}
+// a última especificação usada, para sugerir na próxima entrada
+function ultimaSpec(itemId) {
+  return state.lotes.filter(l => l.itemId === itemId && l.spec).at(-1)?.spec
+    || state.movs.filter(m => m.itemId === itemId && m.spec).at(-1)?.spec || "";
 }
 
 // alertas: cada item pode ter os seus; vazio = padrão
@@ -194,6 +237,9 @@ function viewPainel() {
   const avisoBackup = diasBackup === null ? "Nenhum backup feito."
     : diasBackup > BACKUP_DIAS ? `Último backup há ${diasBackup} dias.` : "";
 
+  const mochila = state.familia.mochila;
+  const mochilaOk = mochila.filter(m => m.ok).length;
+
   const log = state.movs.slice(-8).reverse();
   const sinal = { entrada: ["ENTRADA", "pos", "+"], consumo: ["CONSUMO", "neg", "−"], "doação": ["DOAÇÃO", "neg", "−"], perda: ["PERDA", "del", "−"], descarte: ["DESCARTE", "del", "−"] };
 
@@ -241,6 +287,7 @@ function viewPainel() {
     </div>
 
     ${avisoBackup ? `<a class="alert amarelo" href="#mais">[ BACKUP ] ${avisoBackup} Toque para fazer agora.</a>` : ""}
+    ${!state.familia.pessoas.length || !state.familia.contatos.length ? `<a class="alert amarelo" href="#familia">[ FAMÍLIA ] Fichas e contatos de emergência não preenchidos. Toque para preencher.</a>` : ""}
 
     <div class="card">
       <h2><span class="mod">02</span> · Alertas</h2>
@@ -248,6 +295,7 @@ function viewPainel() {
         <li><a href="#estoque/vermelho"><span class="tag ${vencidos.length ? "vermelho" : "verde"}">${vencidos.length ? "CRÍTICO" : "OK"}</span>${vencidos.length} ${vencidos.length === 1 ? "lote vencido" : "lotes vencidos"}</a></li>
         <li><a href="#estoque/vermelho"><span class="tag ${acabando.length ? "vermelho" : "verde"}">${acabando.length ? "CRÍTICO" : "OK"}</span>${acabando.length} ${acabando.length === 1 ? "item acabando" : "itens acabando"}</a></li>
         <li><a href="#estoque/amarelo"><span class="tag ${aVencer.length ? "amarelo" : "verde"}">${aVencer.length ? "ATENÇÃO" : "OK"}</span>${aVencer.length} ${aVencer.length === 1 ? "lote perto" : "lotes perto"} de vencer</a></li>
+        <li><a href="#familia"><span class="tag ${mochilaOk === mochila.length ? "verde" : "amarelo"}">${mochilaOk === mochila.length ? "OK" : "ATENÇÃO"}</span>Mochila: ${mochilaOk}/${mochila.length} itens prontos</a></li>
       </ul>
     </div>
 
@@ -281,9 +329,10 @@ function viewEstoque(filtro) {
         const s = situacao(i);
         const meta = i.metas[state.config.degrau] || 0;
         const prox = lotesDe(i.id)[0];
+        const specs = specsDe(i.id);
         return `<li><a href="#item/${i.id}">
           <span class="dot ${s.cor}" title="${s.motivo}"></span>
-          <span class="grow"><span class="nm">${esc(i.nome)}</span>${prox?.validade ? `<span class="sub">próx. validade ${fmtData(prox.validade)}</span>` : ""}</span>
+          <span class="grow"><span class="nm">${esc(i.nome)}</span>${specs.length ? `<span class="sub">${esc(specs.join(", "))}</span>` : ""}${prox?.validade ? `<span class="sub">próx. validade ${fmtData(prox.validade)}</span>` : ""}</span>
           <span class="qty">${fmtQtd(qtdValida(i.id), i.unidade)}<span class="sub"> / ${meta ? fmtQtd(meta, i.unidade) : "—"}</span></span>
         </a></li>`;
       }).join("")}</ul>
@@ -321,7 +370,7 @@ function viewItem(id) {
       <div class="head"><h2>Em casa: ${fmtQtd(qtdTotal(id), it.unidade)}</h2></div>
       ${lotes.length ? `<ul class="rows">${lotes.map(l => `
         <li><div class="lote">
-          <span class="grow"><b>${fmtQtd(l.qtd, it.unidade)}</b>${l.local ? `<span class="sub"> · ${esc(l.local)}</span>` : ""}<br>${badgeValidade(l.validade, it)}</span>
+          <span class="grow"><b>${fmtQtd(l.qtd, it.unidade)}</b>${l.spec ? ` <span class="spec">${esc(l.spec)}</span>` : ""}${l.local ? `<span class="sub"> · ${esc(l.local)}</span>` : ""}<br>${badgeValidade(l.validade, it)}</span>
           <button class="btn small ghost" data-descartar="${l.id}">Descartar</button>
         </div></li>`).join("")}</ul>` : `<p class="empty">Nada em casa ainda.</p>`}
     </div>
@@ -335,11 +384,20 @@ function viewItem(id) {
     <div class="card">
       <h2>Histórico</h2>
       ${movs.length ? `<ul class="rows">${movs.map(m => `<li><div class="lote">
-        <span class="grow">${fmtData(m.data)}${m.hora ? " " + m.hora.slice(0, 5) : ""} · ${m.tipo}${m.nota ? ` · ${esc(m.nota)}` : ""}</span>
+        <span class="grow">${fmtData(m.data)}${m.hora ? " " + m.hora.slice(0, 5) : ""} · ${m.tipo}${m.spec ? ` · ${esc(m.spec)}` : ""}${m.nota ? ` · ${esc(m.nota)}` : ""}</span>
         <span class="qty ${m.tipo === "entrada" ? "pos" : "neg"}">${m.tipo === "entrada" ? "+" : "−"}${fmtQtd(m.qtd, it.unidade)}</span>
       </div></li>`).join("")}</ul>` : `<p class="empty">Sem movimentações.</p>`}
     </div>
   </section>`;
+}
+
+// campo de especificação da entrada: o rótulo vem do item (ex.: "Capacidade (mAh) e saídas")
+function specLabel(it) {
+  const t = it?.spec ? it.spec[0].toUpperCase() + it.spec.slice(1) : "Especificação";
+  return `${esc(t)} <span class="opt">(${it?.spec ? "recomendado" : "opcional"})</span>`;
+}
+function specPlaceholder(it) {
+  return it?.spec ? "" : "Ex.: tamanho, capacidade, marca";
 }
 
 function viewEntrada(id) {
@@ -354,6 +412,7 @@ function viewEntrada(id) {
         <label>Quantidade<input id="eQtd" type="number" inputmode="decimal" step="any" min="0.01" required></label>
         <label>Unidade<input id="eUn" value="${esc(it?.unidade || "")}" disabled></label>
       </div>
+      <label id="eSpecWrap">${specLabel(it)}<input id="eSpec" value="${esc(it ? ultimaSpec(it.id) : "")}" placeholder="${esc(specPlaceholder(it))}"></label>
       <label id="eValWrap" ${it && !it.validade ? "hidden" : ""}>Validade<input id="eVal" type="date"></label>
       <label>Onde guardou <span class="opt">(opcional)</span><input id="eLocal" placeholder="Ex.: armário da cozinha"></label>
       <label>Observação <span class="opt">(opcional)</span><input id="eNota" placeholder="Ex.: mercado, promoção"></label>
@@ -403,6 +462,7 @@ function viewEditar(id) {
         </div>
         <p class="sub">Deixe em branco para usar o padrão. Com um mínimo, o item fica amarelo abaixo da meta e vermelho abaixo do mínimo.</p>
       </fieldset>
+      <label>O que anotar em cada compra <span class="opt">(opcional)</span><input id="iSpec" value="${esc(it.spec || "")}" placeholder="Ex.: capacidade (mAh), tamanho, voltagem"></label>
       <label>Dica <span class="opt">(opcional)</span><input id="iDica" value="${esc(it.dica || "")}"></label>
       <button class="btn" type="submit">Salvar</button>
     </form>
@@ -467,6 +527,20 @@ function viewMais() {
   </section>`;
 }
 
+function impressoFamilia() {
+  const f = state.familia;
+  const fichas = f.pessoas.length ? `<h2>Família</h2>
+    <table><thead><tr><th>Nome</th><th>Idade</th><th>Sangue</th><th>Alergias</th><th>Remédios</th><th>Saúde</th><th>Médico</th></tr></thead>
+    <tbody>${f.pessoas.map(p => `<tr><td>${esc(p.nome)}</td><td>${fmtIdade(p.nascimento) || "—"}</td><td>${esc(p.sangue) || "—"}</td><td>${esc(p.alergias) || "—"}</td><td>${esc(p.remedios) || "—"}</td><td>${esc(p.condicoes) || "—"}</td><td>${esc(p.medico) || "—"}</td></tr>`).join("")}</tbody></table>` : "";
+  const contatos = f.contatos.length ? `<h2>Contatos de emergência</h2>
+    <p>${f.contatos.map(c => `${esc(c.nome)}${c.relacao ? ` (${esc(c.relacao)})` : ""}${c.fora ? " [fora da cidade]" : ""}: <b>${esc(c.tel)}</b>`).join(" · ")}</p>` : "";
+  const locais = f.endereco || f.encontro.principal ? `<h2>Casa e pontos de encontro</h2>
+    <p>${f.endereco ? `Casa: ${esc(f.endereco)}<br>` : ""}${f.encontro.principal ? `Principal: ${esc(f.encontro.principal)}<br>` : ""}${f.encontro.secundario ? `Secundário: ${esc(f.encontro.secundario)}` : ""}</p>` : "";
+  const mochila = `<h2>Mochila</h2>
+    <p>${f.mochila.map(m => `${m.ok ? "[x]" : "[ ]"} ${esc(m.nome)}`).join("<br>")}</p>`;
+  return fichas + contatos + locais + mochila;
+}
+
 function viewImprimir() {
   const d = state.config.degrau;
   return `
@@ -475,7 +549,7 @@ function viewImprimir() {
     <h1>GraySafe Hub · Inventário</h1>
     <p>Gerado em ${fmtData(isoHoje())} · meta atual: ${DEGRAUS[d]} · ${state.config.pessoas} pessoas</p>
     <table>
-      <thead><tr><th>Item</th><th>Em casa</th><th>Meta</th><th>Validades</th></tr></thead>
+      <thead><tr><th>Item</th><th>Em casa</th><th>Meta</th><th>Lotes</th></tr></thead>
       <tbody>${CATEGORIAS.map(cat => {
         const its = state.items.filter(i => i.categoria === cat);
         if (!its.length) return "";
@@ -483,14 +557,155 @@ function viewImprimir() {
           <td>${esc(i.nome)}</td>
           <td>${fmtQtd(qtdTotal(i.id), i.unidade)}</td>
           <td>${i.metas[d] ? fmtQtd(i.metas[d], i.unidade) : "—"}</td>
-          <td>${lotesDe(i.id).filter(l => l.validade).map(l => `${fmtQtd(l.qtd, i.unidade)} até ${fmtData(l.validade)}`).join("; ") || "—"}</td>
+          <td>${lotesDe(i.id).filter(l => l.validade || l.spec).map(l => `${fmtQtd(l.qtd, i.unidade)}${l.spec ? ` ${esc(l.spec)}` : ""}${l.validade ? ` até ${fmtData(l.validade)}` : ""}`).join("; ") || "—"}</td>
         </tr>`).join("");
       }).join("")}</tbody>
     </table>
+    ${impressoFamilia()}
     <h2>Telefones</h2>
     <p>Defesa Civil 199 · SAMU 192 · Bombeiros 193 · Alerta da Defesa Civil: SMS com o CEP para 40199</p>
     <h2>Água</h2>
     <p>Hipoclorito de sódio 2,5%: siga a dose do rótulo (em geral 2 gotas por litro, esperar 30 minutos).</p>
+  </section>`;
+}
+
+// ---------- família ----------
+
+function mochilaStatus(m) {
+  const it = m.itemId && item(m.itemId);
+  if (!it) return "";
+  return qtdValida(it.id) > 0
+    ? `<span class="badge verde">em casa</span>`
+    : `<span class="badge vermelho">sem estoque</span>`;
+}
+
+// remédios de uso contínuo de quem tem ficha, para lembrar na mochila
+function remediosFamilia() {
+  return state.familia.pessoas.filter(p => p.remedios).map(p => `${p.remedios} (${p.nome})`);
+}
+
+function viewFamilia() {
+  const f = state.familia;
+  const pronto = f.mochila.filter(m => m.ok).length;
+  const remedios = remediosFamilia();
+  const naCasa = state.config.pessoas;
+  return `
+  <section class="stack">
+    <div class="head"><h1>Família</h1><a class="btn small ghost" href="#cartao">Cartão de bolso</a></div>
+    <p class="sub">Fica só neste aparelho e sai na versão para imprimir. Sem números de documento.</p>
+
+    <div class="card">
+      <div class="head"><h2><span class="mod">01</span> · Fichas</h2><a class="btn small" href="#pessoa">Adicionar</a></div>
+      ${f.pessoas.length ? `<ul class="rows">${f.pessoas.map(p => `<li><a href="#pessoa/${p.id}">
+        <span class="grow"><span class="nm">${esc(p.nome)}</span><span class="sub">${[fmtIdade(p.nascimento), p.alergias && "alergia: " + p.alergias, p.remedios && "remédio: " + p.remedios].filter(Boolean).map(esc).join(" · ")}</span></span>
+        ${p.sangue ? `<span class="badge">${esc(p.sangue)}</span>` : ""}
+      </a></li>`).join("")}</ul>` : `<p class="empty">Nenhuma ficha. Comece por quem tem alergia ou remédio de uso contínuo.</p>`}
+      ${f.pessoas.length && f.pessoas.length !== naCasa ? `<p class="sub">${f.pessoas.length} de ${naCasa} pessoas da casa com ficha.</p>` : ""}
+    </div>
+
+    <div class="card">
+      <div class="head"><h2><span class="mod">02</span> · Contatos de emergência</h2><a class="btn small" href="#contato">Adicionar</a></div>
+      ${f.contatos.length ? `<ul class="rows">${f.contatos.map(c => `<li><div class="lote">
+        <a class="grow plain" href="#contato/${c.id}"><span class="nm">${esc(c.nome)}${c.fora ? ` <span class="badge amarelo">fora da cidade</span>` : ""}</span><span class="sub">${esc(c.relacao)}</span></a>
+        <a class="btn small ghost" href="tel:${esc(c.tel.replace(/[^\d+]/g, ""))}">${esc(c.tel)}</a>
+      </div></li>`).join("")}</ul>` : `<p class="empty">Nenhum contato. Inclua um parente de referência fora da cidade.</p>`}
+      ${f.contatos.length && !f.contatos.some(c => c.fora) ? `<p class="sub">Falta um contato fora da cidade: numa crise local, as linhas daqui ficam congestionadas.</p>` : ""}
+    </div>
+
+    <form class="card form" id="fLocais">
+      <h2><span class="mod">03</span> · Casa e pontos de encontro</h2>
+      <label>Endereço de casa<input id="fEnd" value="${esc(f.endereco)}" placeholder="Rua, número, bairro, cidade"></label>
+      <label>Ponto de encontro principal <span class="opt">(perto de casa)</span><input id="fEnc1" value="${esc(f.encontro.principal)}" placeholder="Ex.: portão da escola"></label>
+      <label>Ponto de encontro secundário <span class="opt">(fora do bairro)</span><input id="fEnc2" value="${esc(f.encontro.secundario)}" placeholder="Ex.: casa da avó"></label>
+      <button class="btn ghost" type="submit">Salvar</button>
+    </form>
+
+    <div class="card">
+      <div class="head"><h2><span class="mod">04</span> · Mochila</h2><span class="sub">${pronto}/${f.mochila.length} prontos</span></div>
+      <span class="bar"><i style="width:${f.mochila.length ? Math.round(pronto / f.mochila.length * 100) : 0}%"></i></span>
+      <ul class="rows">${f.mochila.map(m => `<li><div class="lote">
+        <label class="check grow"><input type="checkbox" data-mochila="${m.id}" ${m.ok ? "checked" : ""}><span>${esc(m.nome)}</span></label>
+        ${mochilaStatus(m)}
+        <button class="btn small ghost" data-mochila-del="${m.id}" type="button" aria-label="Remover ${esc(m.nome)}">×</button>
+      </div></li>`).join("")}</ul>
+      ${remedios.length ? `<p class="sub">Remédios de uso contínuo: ${esc(remedios.join("; "))}</p>` : ""}
+      <form id="fMochila" class="form">
+        <label>Adicionar à mochila<input id="mNome" placeholder="Ex.: carregador de parede"></label>
+        <label>Ligar ao estoque <span class="opt">(opcional)</span><select id="mItem"><option value="">Sem ligação</option>${itemOptions(null)}</select></label>
+        <button class="btn small ghost" type="submit">Adicionar</button>
+      </form>
+    </div>
+  </section>`;
+}
+
+function viewPessoa(id) {
+  const p = id ? pessoa(id) : { nome: "", nascimento: "", sangue: "", alergias: "", remedios: "", condicoes: "", medico: "", obs: "" };
+  if (!p) return `<p class="empty">Ficha não encontrada.</p>`;
+  return `
+  <section class="stack">
+    <a class="back" href="#familia">‹ Família</a>
+    <h1>${id ? "Ficha" : "Nova ficha"}</h1>
+    <form id="fPessoa" class="card form" data-id="${id || ""}">
+      <label>Nome<input id="pNome" value="${esc(p.nome)}" required></label>
+      <div class="row2">
+        <label>Nascimento<input id="pNasc" type="date" value="${esc(p.nascimento)}"></label>
+        <label>Tipo sanguíneo<select id="pSangue"><option value="">Não sei</option>${TIPOS_SANGUE.map(t => `<option ${t === p.sangue ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+      </div>
+      <label>Alergias <span class="opt">(remédio, alimento, picada)</span><input id="pAlerg" value="${esc(p.alergias)}" placeholder="Nenhuma conhecida"></label>
+      <label>Remédios de uso contínuo <span class="opt">(nome, dose, horário)</span><input id="pRem" value="${esc(p.remedios)}"></label>
+      <label>Condições de saúde <span class="opt">(asma, diabetes, epilepsia…)</span><input id="pCond" value="${esc(p.condicoes)}"></label>
+      <label>Médico ou pediatra <span class="opt">(nome e telefone)</span><input id="pMed" value="${esc(p.medico)}"></label>
+      <label>Observações <span class="opt">(opcional)</span><input id="pObs" value="${esc(p.obs)}"></label>
+      <button class="btn" type="submit">Salvar</button>
+    </form>
+    ${id ? `<div id="delArea"><button class="btn ghost danger" id="delReg" type="button">Excluir ficha</button></div>` : ""}
+  </section>`;
+}
+
+function viewContato(id) {
+  const c = id ? contato(id) : { nome: "", relacao: "", tel: "", fora: false };
+  if (!c) return `<p class="empty">Contato não encontrado.</p>`;
+  return `
+  <section class="stack">
+    <a class="back" href="#familia">‹ Família</a>
+    <h1>${id ? "Contato" : "Novo contato"}</h1>
+    <form id="fContato" class="card form" data-id="${id || ""}">
+      <label>Nome<input id="kNome" value="${esc(c.nome)}" required></label>
+      <div class="row2">
+        <label>Relação<input id="kRel" value="${esc(c.relacao)}" placeholder="Ex.: avó, vizinho"></label>
+        <label>Telefone<input id="kTel" type="tel" inputmode="tel" value="${esc(c.tel)}" required></label>
+      </div>
+      <label class="check"><input id="kFora" type="checkbox" ${c.fora ? "checked" : ""}> Mora fora da cidade (parente de referência)</label>
+      <button class="btn" type="submit">Salvar</button>
+    </form>
+    ${id ? `<div id="delArea"><button class="btn ghost danger" id="delReg" type="button">Excluir contato</button></div>` : ""}
+  </section>`;
+}
+
+// cartão para a criança levar: impresso, recortado, duas cópias
+function viewCartao(id) {
+  const f = state.familia;
+  const p = pessoa(id) || f.pessoas.find(x => idade(x.nascimento) !== null && idade(x.nascimento) < 18) || f.pessoas[0];
+  const falta = [!f.contatos.length && "contatos", !f.endereco && "endereço", !f.encontro.principal && "ponto de encontro"].filter(Boolean);
+  const linha = "______________________";
+  const cartao = `<div class="cartao">
+    <b class="ct-t">${p ? esc(p.nome) : linha}</b>
+    ${p && (p.sangue || p.alergias) ? `<span>${[p.sangue && "Sangue " + p.sangue, p.alergias && "Alergia: " + p.alergias].filter(Boolean).map(esc).join(" · ")}</span>` : ""}
+    <span class="ct-h">Se eu me perder, ligue:</span>
+    ${f.contatos.slice(0, 4).map(c => `<span>${esc(c.nome)}${c.relacao ? ` (${esc(c.relacao)})` : ""}: <b>${esc(c.tel)}</b></span>`).join("") || `<span>${linha}</span>`}
+    <span class="ct-h">Moro em:</span><span>${esc(f.endereco) || linha}</span>
+    <span class="ct-h">Ponto de encontro:</span><span>${esc(f.encontro.principal) || linha}${f.encontro.secundario ? ` · se não der: ${esc(f.encontro.secundario)}` : ""}</span>
+    <span class="ct-f">Polícia 190 · SAMU 192 · Bombeiros 193</span>
+  </div>`;
+  return `
+  <section class="print">
+    <div class="noprint stack">
+      <div class="actions"><a class="btn ghost" href="#familia">‹ Voltar</a><button class="btn" id="bPrint" type="button">Imprimir</button></div>
+      ${f.pessoas.length ? `<label class="inline">Cartão de<select id="cartaoDe">${f.pessoas.map(x => `<option value="${x.id}" ${x === p ? "selected" : ""}>${esc(x.nome)}</option>`).join("")}</select></label>` : `<p class="sub">Cadastre a ficha da criança em Família para o nome sair no cartão.</p>`}
+      ${falta.length ? `<p class="alert amarelo">Falta preencher em Família: ${falta.join(", ")}.</p>` : ""}
+      <p class="sub">Saem duas cópias: uma na mochila da escola, outra no bolso. Recorte e cubra com fita larga.</p>
+    </div>
+    <div class="cartoes">${cartao}${cartao}</div>
   </section>`;
 }
 
@@ -509,10 +724,14 @@ function render() {
     compras: () => viewCompras(),
     mais: () => viewMais(),
     imprimir: () => viewImprimir(),
+    familia: () => viewFamilia(),
+    pessoa: () => viewPessoa(arg),
+    contato: () => viewContato(arg),
+    cartao: () => viewCartao(arg),
   };
   $view.innerHTML = (telas[rota] || telas.painel)();
-  document.body.classList.toggle("printing", rota === "imprimir");
-  const ativa = { item: "estoque", editar: "estoque", novo: "estoque", saida: "estoque", imprimir: "mais" }[rota] || rota;
+  document.body.classList.toggle("printing", rota === "imprimir" || rota === "cartao");
+  const ativa = { item: "estoque", editar: "estoque", novo: "estoque", saida: "estoque", imprimir: "mais", pessoa: "familia", contato: "familia", cartao: "familia" }[rota] || rota;
   document.querySelectorAll(".tabbar a").forEach(a => a.classList.toggle("on", a.dataset.route === ativa));
   window.scrollTo(0, 0);
   if (rota === "mais") mostrarPersistencia();
@@ -543,12 +762,20 @@ document.addEventListener("change", e => {
     const it = item(t.value);
     document.getElementById("eUn").value = it?.unidade || "";
     document.getElementById("eValWrap").hidden = it ? !it.validade : false;
+    const w = document.getElementById("eSpecWrap");
+    w.innerHTML = `${specLabel(it)}<input id="eSpec" placeholder="${esc(specPlaceholder(it))}">`;
+    w.querySelector("input").value = it ? ultimaSpec(it.id) : "";
   }
   if (t.id === "sItem") {
     const it = item(t.value);
     document.getElementById("sDisp").textContent = it ? `Em casa: ${fmtQtd(qtdTotal(it.id), it.unidade)}. Sai primeiro o que vence antes.` : "";
   }
   if (t.id === "bImport" && t.files[0]) importar(t.files[0]);
+  if (t.id === "cartaoDe") location.hash = "#cartao/" + t.value;
+  if (t.dataset.mochila) {
+    const m = state.familia.mochila.find(x => x.id === t.dataset.mochila);
+    if (m) { m.ok = t.checked; save(); render(); }
+  }
 });
 
 document.addEventListener("submit", e => {
@@ -561,8 +788,9 @@ document.addEventListener("submit", e => {
     if (!it || !(qtd > 0)) return toast("Escolha o item e a quantidade.");
     const validade = it.validade ? document.getElementById("eVal").value || null : null;
     if (it.validade && !validade) return toast("Informe a validade.");
-    state.lotes.push({ id: uid(), itemId: it.id, qtd, validade, local: document.getElementById("eLocal").value.trim(), criado: isoHoje() });
-    state.movs.push({ id: uid(), itemId: it.id, tipo: "entrada", qtd, data: isoHoje(), hora: horaAgora(), nota: document.getElementById("eNota").value.trim() });
+    const spec = document.getElementById("eSpec").value.trim();
+    state.lotes.push({ id: uid(), itemId: it.id, qtd, validade, spec, local: document.getElementById("eLocal").value.trim(), criado: isoHoje() });
+    state.movs.push({ id: uid(), itemId: it.id, tipo: "entrada", qtd, spec, data: isoHoje(), hora: horaAgora(), nota: document.getElementById("eNota").value.trim() });
     save(); toast(`Entrada registrada: ${fmtQtd(qtd, it.unidade)} de ${it.nome}`);
     location.hash = "#item/" + it.id;
   }
@@ -586,6 +814,7 @@ document.addEventListener("submit", e => {
       unidade: document.getElementById("iUn").value,
       metas: [0, 1, 2].map(i => num("iM" + i) || 0),
       validade: document.getElementById("iVal").checked,
+      spec: document.getElementById("iSpec").value.trim(),
       dica: document.getElementById("iDica").value.trim(),
       avisoDias: campoOpcional("iAviso"),
       minimo: campoOpcional("iMin"),
@@ -596,6 +825,38 @@ document.addEventListener("submit", e => {
     else { id = uid(); state.items.push({ id, ...dados }); }
     save(); toast("Item salvo");
     location.hash = "#item/" + id;
+  }
+
+  if (f.id === "fPessoa") {
+    const v = id => document.getElementById(id).value.trim();
+    const dados = { nome: v("pNome"), nascimento: v("pNasc"), sangue: v("pSangue"), alergias: v("pAlerg"), remedios: v("pRem"), condicoes: v("pCond"), medico: v("pMed"), obs: v("pObs") };
+    if (!dados.nome) return toast("Informe o nome.");
+    if (f.dataset.id) Object.assign(pessoa(f.dataset.id), dados);
+    else state.familia.pessoas.push({ id: uid(), ...dados });
+    save(); toast("Ficha salva"); location.hash = "#familia";
+  }
+
+  if (f.id === "fContato") {
+    const v = id => document.getElementById(id).value.trim();
+    const dados = { nome: v("kNome"), relacao: v("kRel"), tel: v("kTel"), fora: document.getElementById("kFora").checked };
+    if (!dados.nome || !dados.tel) return toast("Informe nome e telefone.");
+    if (f.dataset.id) Object.assign(contato(f.dataset.id), dados);
+    else state.familia.contatos.push({ id: uid(), ...dados });
+    save(); toast("Contato salvo"); location.hash = "#familia";
+  }
+
+  if (f.id === "fLocais") {
+    const v = id => document.getElementById(id).value.trim();
+    state.familia.endereco = v("fEnd");
+    state.familia.encontro = { principal: v("fEnc1"), secundario: v("fEnc2") };
+    save(); toast("Pontos de encontro salvos");
+  }
+
+  if (f.id === "fMochila") {
+    const nome = document.getElementById("mNome").value.trim();
+    if (!nome) return toast("Escreva o que vai na mochila.");
+    state.familia.mochila.push({ id: uid(), nome, itemId: document.getElementById("mItem").value || null, ok: false });
+    save(); render();
   }
 
   if (f.id === "fCfg") {
@@ -625,12 +886,28 @@ document.addEventListener("click", e => {
     document.getElementById("delArea").innerHTML = `<div class="confirm"><span>Excluir o item e todo o histórico dele?</span>
       <button class="btn small danger" id="delYes" type="button">Excluir</button><button class="btn small ghost" id="delNo" type="button">Cancelar</button></div>`;
   }
+  if (t.id === "delReg") {
+    document.getElementById("delArea").innerHTML = `<div class="confirm"><span>Excluir de vez?</span>
+      <button class="btn small danger" id="delYes" type="button">Excluir</button><button class="btn small ghost" id="delNo" type="button">Cancelar</button></div>`;
+  }
+  if (t.dataset.mochilaDel) {
+    state.familia.mochila = state.familia.mochila.filter(m => m.id !== t.dataset.mochilaDel);
+    save(); render();
+  }
   if (t.id === "delNo") render();
-  if (t.id === "delYes") {
-    const id = location.hash.split("/")[1];
+  const [rotaDel, idDel] = location.hash.slice(1).split("/");
+  if (t.id === "delYes" && rotaDel === "pessoa") {
+    state.familia.pessoas = state.familia.pessoas.filter(p => p.id !== idDel);
+    save(); toast("Ficha excluída"); location.hash = "#familia";
+  } else if (t.id === "delYes" && rotaDel === "contato") {
+    state.familia.contatos = state.familia.contatos.filter(c => c.id !== idDel);
+    save(); toast("Contato excluído"); location.hash = "#familia";
+  } else if (t.id === "delYes") {
+    const id = idDel;
     state.items = state.items.filter(i => i.id !== id);
     state.lotes = state.lotes.filter(l => l.itemId !== id);
     state.movs = state.movs.filter(m => m.itemId !== id);
+    state.familia.mochila.forEach(m => { if (m.itemId === id) m.itemId = null; });
     save(); toast("Item excluído"); location.hash = "#estoque";
   }
 
@@ -664,7 +941,7 @@ function importar(file) {
     try {
       const s = JSON.parse(r.result);
       if (!Array.isArray(s.items) || !Array.isArray(s.lotes) || !s.config) throw 0;
-      state = s; save(); toast("Backup restaurado"); location.hash = "#painel"; render();
+      state = migrar(s); save(); toast("Backup restaurado"); location.hash = "#painel"; render();
     } catch (e) { toast("Esse arquivo não é um backup do GraySafe Hub."); }
   };
   r.readAsText(file);

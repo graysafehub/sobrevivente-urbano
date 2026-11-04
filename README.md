@@ -13,7 +13,18 @@ Projeto Sobrevivente Urbano. App de celular para controlar os insumos da famíli
 - **Hub:** Supply Grid com dias de autonomia por categoria (água, ração, energia, saúde, bebê), progresso de cada degrau, alertas e registro de eventos.
 - **Lista de compras:** o que falta para a meta atual.
 - **Backup:** gera um arquivo para baixar e restaurar.
-- **Versão para imprimir:** inventário em papel.
+- **Versão para imprimir:** inventário em papel, com a parte da família.
+
+## Versão 2
+
+- **Especificação por compra:** cada item pode dizer o que anotar na entrada (ex.: power bank → capacidade em mAh; fraldas → tamanho). O valor fica no lote, aparece no estoque, no histórico e no papel. A próxima entrada já sugere a última especificação.
+- **Família:** fichas de saúde (nascimento, tipo sanguíneo, alergias, remédios de uso contínuo, condições, médico), sem números de documento e sem PIN, por decisão.
+- **Contatos de emergência**, com aviso quando falta um parente fora da cidade, e botão de ligar.
+- **Casa e pontos de encontro:** principal (perto de casa) e secundário (fora do bairro).
+- **Mochila:** checklist ligado ao estoque (mostra se o item existe em casa) e com os remédios das fichas.
+- **Cartão de bolso:** duas cópias para imprimir e recortar, com nome, alergias, telefones, endereço e ponto de encontro.
+
+Dados antigos e backups antigos são convertidos sozinhos ao abrir.
 
 ## Arquivos
 
@@ -21,7 +32,7 @@ Projeto Sobrevivente Urbano. App de celular para controlar os insumos da famíli
 |---|---|
 | `index.html` | estrutura da tela |
 | `app.js` | toda a lógica |
-| `seed.js` | catálogo inicial e metas |
+| `seed.js` | catálogo inicial, metas e mochila padrão |
 | `styles.css` | visual |
 | `sw.js` | guarda o app no celular para abrir offline |
 | `manifest.webmanifest` + `icons/` | permite instalar na tela inicial |
@@ -38,4 +49,4 @@ Depois abra http://localhost:8765.
 
 ## Ao alterar arquivos
 
-Suba a versão em `sw.js` (`su-v1` → `su-v2`) para o celular baixar a versão nova.
+Suba a versão em `sw.js` (hoje `su-v4`) para o celular baixar a versão nova.
