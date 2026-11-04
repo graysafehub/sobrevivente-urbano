@@ -148,6 +148,32 @@ function qtdValida(itemId) {
 function qtdTotal(itemId) {
   return lotesDe(itemId).reduce((s, l) => s + l.qtd, 0);
 }
+// ---------- preço ----------
+// cada lote guarda o preço unitário pago; o item tem um preço de referência (o digitado em Editar
+// ou, sem ele, o último pago). Dinheiro vale o próprio valor.
+function precoRef(it) {
+  if (!it) return null;
+  if (it.unidade === "R$") return 1;
+  if (it.precoRef != null) return it.precoRef;
+  return state.lotes.filter(l => l.itemId === it.id && l.precoUn != null).at(-1)?.precoUn
+    ?? state.movs.filter(m => m.itemId === it.id && m.precoUn != null).at(-1)?.precoUn ?? null;
+}
+const precoLote = (l, it) => l.precoUn ?? precoRef(it);
+// valor do que está em casa; semPreco = itens com estoque e nenhum preço conhecido
+function valorEstoque() {
+  let total = 0;
+  const semPreco = new Set();
+  for (const l of state.lotes) {
+    const it = item(l.itemId);
+    const p = precoLote(l, it);
+    if (p == null) semPreco.add(l.itemId); else total += l.qtd * p;
+  }
+  return { total, semPreco: semPreco.size };
+}
+function fmtReais(v) {
+  return "R$ " + v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 // especificações diferentes que há em casa (ex.: "10.000 mAh, 20.000 mAh")
 function specsDe(itemId) {
   return [...new Set(lotesDe(itemId).map(l => l.spec).filter(Boolean))];
@@ -318,6 +344,8 @@ function viewPainel() {
       }).join("")}
     </div>
 
+    ${tileValor()}
+
     ${avisoBackup ? `<a class="alert amarelo" href="#mais">[ BACKUP ] ${avisoBackup} Toque para fazer agora.</a>` : ""}
     ${!state.familia.pessoas.length || !state.familia.contatos.length ? `<a class="alert amarelo" href="#familia">[ FAMÍLIA ] Fichas e contatos de emergência não preenchidos. Toque para preencher.</a>` : ""}
 
@@ -348,6 +376,17 @@ function viewPainel() {
       }).join("")}</ul>` : `<p class="empty">Nenhum registro. Use Entrada para registrar a primeira compra.</p>`}
     </div>
   </section>`;
+}
+
+function tileValor() {
+  const v = valorEstoque();
+  const f = faltaComprar(state.config.degrau);
+  return `<div class="grid2">
+    <a class="tile" href="#estoque"><span class="lbl">Valor do estoque</span><b class="sm">${fmtReais(v.total)}</b>
+      <span class="sub">${v.semPreco ? `${v.semPreco} ${v.semPreco === 1 ? "item" : "itens"} sem preço` : "pelo preço pago"}</span></a>
+    <a class="tile" href="#compras"><span class="lbl">Falta para ${DEGRAUS[state.config.degrau]}</span><b class="sm">${f.custo ? "≈ " + fmtReais(f.custo) : "—"}</b>
+      <span class="sub">${f.semPreco ? `${f.semPreco} ${f.semPreco === 1 ? "item" : "itens"} sem preço` : f.itens.length ? "pelo último preço" : "meta completa"}</span></a>
+  </div>`;
 }
 
 function viewEstoque(filtro) {
@@ -400,7 +439,7 @@ function viewItem(id) {
     </div>
 
     <div class="card">
-      <div class="head"><h2>Em casa: ${fmtQtd(qtdTotal(id), it.unidade)}</h2></div>
+      <div class="head"><h2>Em casa: ${fmtQtd(qtdTotal(id), it.unidade)}</h2>${valorItem(it)}</div>
       ${lotes.length ? `<ul class="rows">${lotes.map(l => `
         <li><div class="lote">
           <span class="grow"><b>${fmtQtd(l.qtd, it.unidade)}</b>${l.spec ? ` <span class="spec">${esc(l.spec)}</span>` : ""}${l.marca ? `<span class="sub"> · ${esc(l.marca)}</span>` : ""}${l.local ? `<span class="sub"> · ${esc(l.local)}</span>` : ""}<br>${badgeValidade(l.validade, it)}</span>
@@ -419,7 +458,7 @@ function viewItem(id) {
     <div class="card">
       <h2>Histórico</h2>
       ${movs.length ? `<ul class="rows">${movs.map(m => `<li><div class="lote">
-        <span class="grow">${fmtData(m.data)}${m.hora ? " " + m.hora.slice(0, 5) : ""} · ${m.tipo}${m.marca ? ` · ${esc(m.marca)}` : ""}${m.spec ? ` · ${esc(m.spec)}` : ""}${m.nota ? ` · ${esc(m.nota)}` : ""}</span>
+        <span class="grow">${fmtData(m.data)}${m.hora ? " " + m.hora.slice(0, 5) : ""} · ${m.tipo}${m.marca ? ` · ${esc(m.marca)}` : ""}${m.spec ? ` · ${esc(m.spec)}` : ""}${m.precoUn != null && it.unidade !== "R$" ? ` · ${fmtReais(m.precoUn * m.qtd)}` : ""}${m.nota ? ` · ${esc(m.nota)}` : ""}</span>
         <span class="qty ${m.tipo === "entrada" ? "pos" : "neg"}">${m.tipo === "entrada" ? "+" : "−"}${fmtQtd(m.qtd, it.unidade)}</span>
       </div></li>`).join("")}</ul>` : `<p class="empty">Sem movimentações.</p>`}
     </div>
@@ -435,13 +474,26 @@ function specPlaceholder(it) {
   return it?.spec ? "" : "Ex.: tamanho, capacidade, marca";
 }
 
+function valorItem(it) {
+  if (it.unidade === "R$") return "";
+  const lotes = lotesDe(it.id);
+  const ref = precoRef(it);
+  const comPreco = lotes.filter(l => precoLote(l, it) != null);
+  const total = comPreco.reduce((s, l) => s + l.qtd * precoLote(l, it), 0);
+  if (!lotes.length) return ref != null ? `<span class="sub">${fmtReais(ref)}/${esc(it.unidade)}</span>` : "";
+  return `<span class="sub">${comPreco.length ? fmtReais(total) : "sem preço"}${ref != null ? ` · ${fmtReais(ref)}/${esc(it.unidade)}` : ""}</span>`;
+}
+
 function guiaHtml(it) {
   const g = guiaDe(it);
   if (!g) return "";
   const parte = (t, txt) => txt ? `<div><span class="lbl">${t}</span><p>${esc(txt)}</p></div>` : "";
   return `<div class="card guia">
     <h2>Guia de compra</h2>
-    ${parte("Como escolher", g.escolher)}${parte("Como guardar", g.armazenar)}${parte("Como preparar para guardar", g.preparar)}
+    ${parte("Como escolher", g.escolher)}${parte("Quanto comprar", g.quanto)}${parte("Como guardar", g.armazenar)}${parte("Como preparar para guardar", g.preparar)}
+    ${g.fontes?.length ? `<div><span class="lbl">Fontes</span><ul class="fontes">${g.fontes.map(f => FONTES[f]).filter(Boolean).map(f =>
+      `<li><a href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.nome)}</a></li>`).join("")}</ul></div>`
+      : `<p class="sub">Orientação prática, sem fonte oficial específica.</p>`}
   </div>`;
 }
 
@@ -476,6 +528,8 @@ function viewEntrada(id) {
       <label id="eSpecWrap">${specLabel(it)}<input id="eSpec" value="${esc(it ? ultimaSpec(it.id) : "")}" placeholder="${esc(specPlaceholder(it))}"></label>
       <label id="eValWrap" ${it && !it.validade ? "hidden" : ""}>Validade<input id="eVal" type="date"></label>
       <label>Marca <span class="opt">(opcional)</span><input id="eMarca" placeholder="Ex.: Tio João"></label>
+      <label>Preço pago, total <span class="opt">(opcional)</span><input id="ePreco" type="number" inputmode="decimal" step="0.01" min="0" placeholder="R$"></label>
+      <p class="sub" id="ePrecoInfo">${it && precoRef(it) != null && it.unidade !== "R$" ? `Último preço: ${fmtReais(precoRef(it))}/${esc(it.unidade)}` : ""}</p>
       <label>Onde guardou <span class="opt">(opcional)</span><input id="eLocal" placeholder="Ex.: armário da cozinha"></label>
       <label>Observação <span class="opt">(opcional)</span><input id="eNota" placeholder="Ex.: mercado, promoção"></label>
       <button class="btn" type="submit">Registrar entrada</button>
@@ -525,6 +579,8 @@ function viewEditar(id) {
         </div>
         <p class="sub">Deixe em branco para usar o padrão. Com um mínimo, o item fica amarelo abaixo da meta e vermelho abaixo do mínimo.</p>
       </fieldset>
+      ${it.unidade === "R$" ? "" : `<label>Preço de referência por ${esc(it.unidade)} <span class="opt">(opcional)</span><input id="iPreco" type="number" inputmode="decimal" step="0.01" min="0" value="${it.precoRef ?? ""}" placeholder="${id && precoRef(it) != null ? "último pago: " + precoRef(it).toLocaleString("pt-BR") : "R$"}"></label>
+      <p class="sub">Vale para o que está em casa sem preço registrado e para estimar a lista de compras. Em branco, usa o último preço pago.</p>`}
       <label>O que anotar em cada compra <span class="opt">(opcional)</span><input id="iSpec" value="${esc(it.spec || "")}" placeholder="Ex.: capacidade (mAh), tamanho, voltagem"></label>
       <label>Dica <span class="opt">(opcional)</span><input id="iDica" value="${esc(it.dica || "")}"></label>
       <button class="btn" type="submit">Salvar</button>
@@ -533,17 +589,26 @@ function viewEditar(id) {
   </section>`;
 }
 
+// o que falta para a meta, com o custo estimado pelo preço de referência
+function faltaComprar(d) {
+  const itens = state.items.map(i => ({ i, f: metaDe(i, d) - qtdValida(i.id), p: precoRef(i) })).filter(x => x.f > 0);
+  return {
+    itens,
+    custo: itens.reduce((s, x) => s + (x.p != null ? x.f * x.p : 0), 0),
+    semPreco: itens.filter(x => x.p == null).length,
+  };
+}
+
 function viewCompras() {
   const d = state.config.degrau;
+  const tudo = faltaComprar(d);
   const grupos = CATEGORIAS.map(cat => {
-    const falta = state.items.filter(i => i.categoria === cat)
-      .map(i => ({ i, f: metaDe(i, d) - qtdValida(i.id) }))
-      .filter(x => x.f > 0);
+    const falta = tudo.itens.filter(x => x.i.categoria === cat);
     if (!falta.length) return "";
     return `<div class="card flush"><h2>${esc(cat)}</h2><ul class="rows">${falta.map(x =>
       `<li><div class="lote">
         <a class="grow plain" href="#item/${x.i.id}"><span class="nm">${esc(x.i.nome)}</span>${guiaDe(x.i) ? `<span class="sub">ver como escolher ›</span>` : ""}</a>
-        <span class="qty">${fmtQtd(x.f, x.i.unidade)}</span>
+        <span class="qty">${fmtQtd(x.f, x.i.unidade)}${x.p != null && x.i.unidade !== "R$" ? `<span class="sub"><br>≈ ${fmtReais(x.f * x.p)}</span>` : ""}</span>
         <a class="btn small" href="#entrada/${x.i.id}" aria-label="Registrar compra de ${esc(x.i.nome)}">+</a>
       </div></li>`).join("")}</ul></div>`;
   }).join("");
@@ -552,6 +617,8 @@ function viewCompras() {
   <section class="stack">
     <h1>Lista de compras</h1>
     <p class="sub">O que falta para a meta de ${DEGRAUS[d]}. Toque no item para ver como escolher e guardar; + registra a compra.</p>
+    ${tudo.itens.length ? `<div class="card"><div class="head"><h2>Custo estimado</h2><b>${fmtReais(tudo.custo)}</b></div>
+      <p class="sub">Pelo último preço pago ou de referência.${tudo.semPreco ? ` ${tudo.semPreco} ${tudo.semPreco === 1 ? "item ainda não tem" : "itens ainda não têm"} preço e ${tudo.semPreco === 1 ? "fica" : "ficam"} fora da conta.` : ""}</p></div>` : ""}
     ${grupos || `<div class="card"><b>Meta de ${DEGRAUS[d]} completa.</b>${proximo}</div>`}
   </section>`;
 }
@@ -617,18 +684,20 @@ function viewImprimir() {
     <h1>GraySafe Hub · Inventário</h1>
     <p>Gerado em ${fmtData(isoHoje())} · meta atual: ${DEGRAUS[d]} · ${nPessoas()} pessoas</p>
     <table>
-      <thead><tr><th>Item</th><th>Em casa</th><th>Meta</th><th>Lotes</th></tr></thead>
+      <thead><tr><th>Item</th><th>Em casa</th><th>Meta</th><th>Lotes</th><th>Valor</th></tr></thead>
       <tbody>${CATEGORIAS.map(cat => {
         const its = state.items.filter(i => i.categoria === cat);
         if (!its.length) return "";
-        return `<tr class="cat"><td colspan="4">${esc(cat)}</td></tr>` + its.map(i => `<tr>
+        return `<tr class="cat"><td colspan="5">${esc(cat)}</td></tr>` + its.map(i => `<tr>
           <td>${esc(i.nome)}</td>
           <td>${fmtQtd(qtdTotal(i.id), i.unidade)}</td>
           <td>${metaDe(i, d) ? fmtQtd(metaDe(i, d), i.unidade) : "—"}</td>
           <td>${lotesDe(i.id).filter(l => l.validade || l.spec).map(l => `${fmtQtd(l.qtd, i.unidade)}${l.spec ? ` ${esc(l.spec)}` : ""}${l.validade ? ` até ${fmtData(l.validade)}` : ""}`).join("; ") || "—"}</td>
+          <td>${(() => { const ls = lotesDe(i.id).filter(l => precoLote(l, i) != null); return ls.length ? fmtReais(ls.reduce((t, l) => t + l.qtd * precoLote(l, i), 0)) : "—"; })()}</td>
         </tr>`).join("");
       }).join("")}</tbody>
     </table>
+    <p>Valor do estoque: <b>${fmtReais(valorEstoque().total)}</b>${valorEstoque().semPreco ? ` (${valorEstoque().semPreco} itens sem preço)` : ""}</p>
     ${impressoFamilia()}
     <h2>Telefones</h2>
     <p>Defesa Civil 199 · SAMU 192 · Bombeiros 193 · Alerta da Defesa Civil: SMS com o CEP para 40199</p>
@@ -835,6 +904,8 @@ document.addEventListener("change", e => {
     if (e.isTrusted) { document.getElementById("eCod").value = ""; document.getElementById("eCodInfo").hidden = true; }
     document.getElementById("eUn").value = it?.unidade || "";
     document.getElementById("eValWrap").hidden = it ? !it.validade : false;
+    const pi = document.getElementById("ePrecoInfo");
+    pi.textContent = it && precoRef(it) != null && it.unidade !== "R$" ? `Último preço: ${fmtReais(precoRef(it))}/${it.unidade}` : "";
     const w = document.getElementById("eSpecWrap");
     w.innerHTML = `${specLabel(it)}<input id="eSpec" placeholder="${esc(specPlaceholder(it))}">`;
     w.querySelector("input").value = it ? ultimaSpec(it.id) : "";
@@ -865,8 +936,10 @@ document.addEventListener("submit", e => {
     const marca = document.getElementById("eMarca").value.trim();
     const cod = document.getElementById("eCod").value;
     if (cod && state.codigos[cod]) Object.assign(state.codigos[cod], { marca: marca || state.codigos[cod].marca, spec: spec || state.codigos[cod].spec });
-    state.lotes.push({ id: uid(), itemId: it.id, qtd, validade, spec, marca, codigo: cod || null, local: document.getElementById("eLocal").value.trim(), criado: isoHoje() });
-    state.movs.push({ id: uid(), itemId: it.id, tipo: "entrada", qtd, spec, marca, data: isoHoje(), hora: horaAgora(), nota: document.getElementById("eNota").value.trim() });
+    const pago = num("ePreco");
+    const precoUn = it.unidade === "R$" ? 1 : pago > 0 ? Math.round(pago / qtd * 10000) / 10000 : null;
+    state.lotes.push({ id: uid(), itemId: it.id, qtd, validade, spec, marca, codigo: cod || null, precoUn, local: document.getElementById("eLocal").value.trim(), criado: isoHoje() });
+    state.movs.push({ id: uid(), itemId: it.id, tipo: "entrada", qtd, spec, marca, precoUn, data: isoHoje(), hora: horaAgora(), nota: document.getElementById("eNota").value.trim() });
     save(); toast(`Entrada registrada: ${fmtQtd(qtd, it.unidade)} de ${it.nome}`);
     location.hash = "#item/" + it.id;
   }
@@ -899,6 +972,7 @@ document.addEventListener("submit", e => {
       dica: document.getElementById("iDica").value.trim(),
       avisoDias: campoOpcional("iAviso"),
       minimo: campoOpcional("iMin"),
+      precoRef: document.getElementById("iPreco") ? campoOpcional("iPreco") : null,
     };
     if (!dados.nome) return toast("Dê um nome ao item.");
     let id = f.dataset.id;

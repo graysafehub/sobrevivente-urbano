@@ -29,7 +29,8 @@ Dados antigos e backups antigos são convertidos sozinhos ao abrir.
 ## Versão 3
 
 - **Metas pela família:** com fichas cadastradas, as metas usam o número de pessoas das fichas. Cada item tem uma regra (Editar › "A meta cresce com"): por pessoa (comida, água, higiene), por bebê de até 2 anos (fraldas, lenço, pomada) ou fixa (lanterna, rádio, kit…). As metas do catálogo são para a família base de 5 pessoas com 1 bebê.
-- **Guia de compra:** cada item do catálogo mostra como escolher, como guardar e, quando houver, como preparar para guardar. Na lista de compras, tocar no item abre o guia; o `+` registra a compra.
+- **Guia de compra:** cada item do catálogo mostra como escolher, quanto comprar, como guardar (com prazos e o porquê) e, quando houver, como preparar para guardar, com as fontes (Ready.gov, Saúde de SP, BYU, USU, Kansas State, Embrapa, USDA, fabricantes). Itens sem fonte específica dizem isso. Na lista de compras, tocar no item abre o guia; o `+` registra a compra.
+- **Preço:** a Entrada aceita o preço pago (total); o app guarda o preço por unidade no lote. Cada item pode ter um preço de referência (Editar), usado para o que está em casa sem preço e para estimar a lista de compras; sem ele, vale o último preço pago. O Hub mostra o valor do estoque e quanto falta gastar para a meta; a lista de compras e o papel mostram os valores.
 - **Código de barras:** na Entrada, "Ler código de barras" usa a câmera (leitor nativo do Chrome no Android, funciona offline). Código novo: o app pergunta de qual item é e a marca, e grava. Código conhecido: preenche item, marca e especificação. Mesmo produto e marca, mesmo código; outra marca, outro código. Os códigos de um item aparecem na tela dele e podem ser desligados. Sem câmera, dá para digitar os números.
 
 ## Arquivos
@@ -56,4 +57,4 @@ Depois abra http://localhost:8765.
 
 ## Ao alterar arquivos
 
-Suba a versão em `sw.js` (hoje `su-v6`) para o celular baixar a versão nova.
+Suba a versão em `sw.js` (hoje `su-v7`) para o celular baixar a versão nova.

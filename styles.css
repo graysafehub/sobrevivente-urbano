@@ -191,7 +191,12 @@ ul.rows .check { flex-direction: row; align-items: center; gap: 10px; cursor: po
 ul.rows .check input { flex: none; width: 20px; height: 20px; min-height: 20px; margin: 0; accent-color: var(--olive); }
 ul.rows .check input:checked + span { color: var(--muted); text-decoration: line-through; }
 
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+a.tile { text-decoration: none; color: inherit; }
+
 /* guia de compra */
+.fontes { margin: 0; padding-left: 1.1em; font-size: .78rem; display: flex; flex-direction: column; gap: 4px; }
+.fontes a { overflow-wrap: anywhere; }
 .guia > div { display: flex; flex-direction: column; gap: 2px; }
 .guia p { font-size: .85rem; }
 
