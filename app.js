@@ -1,4 +1,4 @@
-// Sobrevivente Urbano — estoque de insumos da família, 100% offline.
+// GraySafe Hub (projeto Sobrevivente Urbano) — estoque de insumos da família, 100% offline.
 // Dados no localStorage do aparelho; backup manual em arquivo JSON.
 
 const KEY = "sobrevivente-urbano-v1";
@@ -60,6 +60,9 @@ function fmtData(iso) {
 function isoHoje() {
   const d = hoje();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function horaAgora() {
+  return new Date().toTimeString().slice(0, 8);
 }
 function fmtQtd(n, un) {
   const v = Math.round(n * 100) / 100;
@@ -152,11 +155,35 @@ function itemOptions(selId) {
 
 // ---------- telas ----------
 
+// dias de autonomia por categoria: água pelo consumo real; o resto estimado
+// pela meta de 2 semanas (a meta de 14 dias = 14 dias de consumo)
+const SUPPLY = [
+  { cat: "Água", nome: "Água" },
+  { cat: "Comida", nome: "Ração" },
+  { cat: "Luz e energia", nome: "Energia" },
+  { cat: "Saúde e higiene", nome: "Saúde" },
+  { cat: "Bebê", nome: "Bebê" },
+];
+function diasCategoria(cat) {
+  const c = state.config;
+  if (cat === "Água") {
+    const agua = state.items.find(i => i.nome.startsWith("Água potável"));
+    return Math.floor((agua ? qtdValida(agua.id) : 0) / (c.pessoas * c.litrosDia));
+  }
+  const its = state.items.filter(i => i.categoria === cat && (i.metas[2] || 0) > 0);
+  if (!its.length) return null;
+  const ds = its.map(i => Math.min(qtdValida(i.id) / (i.metas[2] / 14), 14));
+  return Math.floor(ds.reduce((s, d) => s + d, 0) / ds.length);
+}
+
+function hhmm(m) {
+  const [, mm, dd] = m.data.split("-");
+  return `${dd}/${mm}${m.hora ? " " + m.hora.slice(0, 5) : ""}`;
+}
+
 function viewPainel() {
   const c = state.config;
-  const agua = state.items.find(i => i.nome.startsWith("Água potável"));
-  const litros = agua ? qtdValida(agua.id) : 0;
-  const diasAgua = Math.floor(litros / (c.pessoas * c.litrosDia));
+  const alvoDias = [3, 7, 14][c.degrau];
 
   const vencidos = state.lotes.filter(l => diasAte(l.validade) < 0);
   const aVencer = state.lotes.filter(l => vencendo(l, item(l.itemId)))
@@ -164,16 +191,40 @@ function viewPainel() {
   const acabando = state.items.filter(i => temMinimo(i) ? qtdValida(i.id) < i.minimo : qtdValida(i.id) < (i.metas[c.degrau] || 0));
 
   const diasBackup = c.ultimoBackup ? -diasAte(c.ultimoBackup) : null;
-  const avisoBackup = diasBackup === null ? "Você ainda não fez nenhum backup."
+  const avisoBackup = diasBackup === null ? "Nenhum backup feito."
     : diasBackup > BACKUP_DIAS ? `Último backup há ${diasBackup} dias.` : "";
+
+  const log = state.movs.slice(-8).reverse();
+  const sinal = { entrada: ["ENTRADA", "pos", "+"], consumo: ["CONSUMO", "neg", "−"], "doação": ["DOAÇÃO", "neg", "−"], perda: ["PERDA", "del", "−"], descarte: ["DESCARTE", "del", "−"] };
 
   return `
   <section class="stack">
     <div class="head">
-      <h1>Painel</h1>
-      <label class="inline">Meta atual
+      <h1><span class="mod">00</span> // Status</h1>
+      <label class="inline">Meta
         <select id="cfgDegrau">${DEGRAUS.map((d, i) => `<option value="${i}" ${i === c.degrau ? "selected" : ""}>${d}</option>`).join("")}</select>
       </label>
+    </div>
+
+    <div class="card">
+      <h2><span class="mod">01</span> · Supply grid · dias de autonomia</h2>
+      <div class="supply">
+        ${SUPPLY.map(s => {
+          const d = diasCategoria(s.cat);
+          if (d === null) return "";
+          const cor = d < 3 ? "vermelho" : d < alvoDias ? "amarelo" : "verde";
+          const on = Math.min(d, 14);
+          return `<a class="sup ${cor}" href="#estoque" style="text-decoration:none;color:inherit">
+            <span class="nm">${s.nome}</span>
+            <span class="d">${String(d).padStart(2, "0")}<small>D</small></span>
+            <span class="segs" aria-label="${d} dias">${Array.from({ length: 14 }, (_, k) => `<i class="${k < on ? "on" : ""}"></i>`).join("")}</span>
+          </a>`;
+        }).join("")}
+        <div class="sup" aria-hidden="true"><span></span><span></span>
+          <span class="scale"><span style="left:0">0</span><span style="left:${3 / 14 * 100}%">3</span><span style="left:50%">7</span><span style="right:0">14</span></span>
+        </div>
+      </div>
+      <p class="sub">Água pelo consumo de ${c.pessoas} pessoas × ${c.litrosDia} L. Demais: estimativa pelas metas de 2 semanas.</p>
     </div>
 
     <div class="grid3">
@@ -182,26 +233,21 @@ function viewPainel() {
         const pct = p.total ? Math.round(p.ok / p.total * 100) : 0;
         return `<div class="tile ${i === c.degrau ? "atual" : ""}">
           <span class="lbl">${d}</span>
-          <b>${pct}%</b>
-          <span class="sub">${p.ok} de ${p.total} itens</span>
+          <b>${String(pct).padStart(2, "0")}%</b>
+          <span class="sub">${p.ok}/${p.total} itens</span>
           <span class="bar"><i style="width:${pct}%"></i></span>
         </div>`;
       }).join("")}
     </div>
 
-    <div class="card agua">
-      <div><span class="lbl">Água para ${c.pessoas} pessoas</span><b>${diasAgua} ${diasAgua === 1 ? "dia" : "dias"}</b></div>
-      <span class="sub">${fmtQtd(litros, "L")} válidos · ${c.pessoas * c.litrosDia} L por dia</span>
-    </div>
-
-    ${avisoBackup ? `<a class="alert amarelo" href="#mais">${avisoBackup} Toque para fazer agora.</a>` : ""}
+    ${avisoBackup ? `<a class="alert amarelo" href="#mais">[ BACKUP ] ${avisoBackup} Toque para fazer agora.</a>` : ""}
 
     <div class="card">
-      <h2>Atenção</h2>
+      <h2><span class="mod">02</span> · Alertas</h2>
       <ul class="plain">
-        <li><a href="#estoque/vermelho">${vencidos.length} ${vencidos.length === 1 ? "lote vencido" : "lotes vencidos"}</a></li>
-        <li><a href="#estoque/vermelho">${acabando.length} ${acabando.length === 1 ? "item acabando" : "itens acabando"} (abaixo do mínimo ou da meta)</a></li>
-        <li><a href="#estoque/amarelo">${aVencer.length} ${aVencer.length === 1 ? "lote perto" : "lotes perto"} de vencer</a></li>
+        <li><a href="#estoque/vermelho"><span class="tag ${vencidos.length ? "vermelho" : "verde"}">${vencidos.length ? "CRÍTICO" : "OK"}</span>${vencidos.length} ${vencidos.length === 1 ? "lote vencido" : "lotes vencidos"}</a></li>
+        <li><a href="#estoque/vermelho"><span class="tag ${acabando.length ? "vermelho" : "verde"}">${acabando.length ? "CRÍTICO" : "OK"}</span>${acabando.length} ${acabando.length === 1 ? "item acabando" : "itens acabando"}</a></li>
+        <li><a href="#estoque/amarelo"><span class="tag ${aVencer.length ? "amarelo" : "verde"}">${aVencer.length ? "ATENÇÃO" : "OK"}</span>${aVencer.length} ${aVencer.length === 1 ? "lote perto" : "lotes perto"} de vencer</a></li>
       </ul>
     </div>
 
@@ -209,9 +255,18 @@ function viewPainel() {
       <h2>Consumir primeiro</h2>
       <ul class="rows">${aVencer.slice(0, 6).map(l => {
         const it = item(l.itemId);
-        return `<li><a href="#item/${l.itemId}"><span>${esc(it?.nome)}</span><span class="right">${fmtQtd(l.qtd, it?.unidade)} ${badgeValidade(l.validade, it)}</span></a></li>`;
+        return `<li><a href="#item/${l.itemId}"><span class="grow">${esc(it?.nome)}</span><span class="right">${fmtQtd(l.qtd, it?.unidade)} ${badgeValidade(l.validade, it)}</span></a></li>`;
       }).join("")}</ul>
     </div>` : ""}
+
+    <div class="card">
+      <h2><span class="mod">03</span> · Registro</h2>
+      ${log.length ? `<ul class="log">${log.map(m => {
+        const it = item(m.itemId);
+        const [rot, cls, s] = sinal[m.tipo] || [m.tipo.toUpperCase(), "neg", "−"];
+        return `<li><time>[${hhmm(m)}]</time> <span class="ev"><span class="${cls}">${rot} ${s}${fmtQtd(m.qtd, it?.unidade || "")}</span> ${esc((it?.nome || "item excluído").toUpperCase())}</span></li>`;
+      }).join("")}</ul>` : `<p class="empty">Nenhum registro. Use Entrada para registrar a primeira compra.</p>`}
+    </div>
   </section>`;
 }
 
@@ -280,7 +335,7 @@ function viewItem(id) {
     <div class="card">
       <h2>Histórico</h2>
       ${movs.length ? `<ul class="rows">${movs.map(m => `<li><div class="lote">
-        <span class="grow">${fmtData(m.data)} · ${m.tipo}${m.nota ? ` · ${esc(m.nota)}` : ""}</span>
+        <span class="grow">${fmtData(m.data)}${m.hora ? " " + m.hora.slice(0, 5) : ""} · ${m.tipo}${m.nota ? ` · ${esc(m.nota)}` : ""}</span>
         <span class="qty ${m.tipo === "entrada" ? "pos" : "neg"}">${m.tipo === "entrada" ? "+" : "−"}${fmtQtd(m.qtd, it.unidade)}</span>
       </div></li>`).join("")}</ul>` : `<p class="empty">Sem movimentações.</p>`}
     </div>
@@ -417,7 +472,7 @@ function viewImprimir() {
   return `
   <section class="print">
     <div class="noprint actions"><a class="btn ghost" href="#mais">‹ Voltar</a><button class="btn" id="bPrint" type="button">Imprimir</button></div>
-    <h1>Sobrevivente Urbano · Inventário</h1>
+    <h1>GraySafe Hub · Inventário</h1>
     <p>Gerado em ${fmtData(isoHoje())} · meta atual: ${DEGRAUS[d]} · ${state.config.pessoas} pessoas</p>
     <table>
       <thead><tr><th>Item</th><th>Em casa</th><th>Meta</th><th>Validades</th></tr></thead>
@@ -507,7 +562,7 @@ document.addEventListener("submit", e => {
     const validade = it.validade ? document.getElementById("eVal").value || null : null;
     if (it.validade && !validade) return toast("Informe a validade.");
     state.lotes.push({ id: uid(), itemId: it.id, qtd, validade, local: document.getElementById("eLocal").value.trim(), criado: isoHoje() });
-    state.movs.push({ id: uid(), itemId: it.id, tipo: "entrada", qtd, data: isoHoje(), nota: document.getElementById("eNota").value.trim() });
+    state.movs.push({ id: uid(), itemId: it.id, tipo: "entrada", qtd, data: isoHoje(), hora: horaAgora(), nota: document.getElementById("eNota").value.trim() });
     save(); toast(`Entrada registrada: ${fmtQtd(qtd, it.unidade)} de ${it.nome}`);
     location.hash = "#item/" + it.id;
   }
@@ -519,7 +574,7 @@ document.addEventListener("submit", e => {
     const disp = qtdTotal(it.id);
     if (qtd > disp) return toast(`Só há ${fmtQtd(disp, it.unidade)} em casa.`);
     const saiu = darSaida(it.id, qtd);
-    state.movs.push({ id: uid(), itemId: it.id, tipo: document.getElementById("sMotivo").value, qtd: saiu, data: isoHoje() });
+    state.movs.push({ id: uid(), itemId: it.id, tipo: document.getElementById("sMotivo").value, qtd: saiu, data: isoHoje(), hora: horaAgora() });
     save(); toast(`Saída registrada: ${fmtQtd(saiu, it.unidade)}`);
     location.hash = "#item/" + it.id;
   }
@@ -561,7 +616,7 @@ document.addEventListener("click", e => {
     const l = state.lotes.find(x => x.id === t.dataset.descartar);
     if (!l) return;
     if (t.dataset.confirm !== "1") { t.dataset.confirm = "1"; t.textContent = "Confirmar descarte"; t.classList.add("danger"); return; }
-    state.movs.push({ id: uid(), itemId: l.itemId, tipo: "descarte", qtd: l.qtd, data: isoHoje(), nota: l.validade ? `validade ${fmtData(l.validade)}` : "" });
+    state.movs.push({ id: uid(), itemId: l.itemId, tipo: "descarte", qtd: l.qtd, data: isoHoje(), hora: horaAgora(), nota: l.validade ? `validade ${fmtData(l.validade)}` : "" });
     state.lotes = state.lotes.filter(x => x.id !== l.id);
     save(); toast("Lote descartado"); render();
   }
@@ -596,7 +651,7 @@ function exportar() {
   const blob = new Blob([JSON.stringify(state, null, 1)], { type: "application/json" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = `sobrevivente-urbano-backup-${isoHoje()}.json`;
+  a.download = `graysafe-backup-${isoHoje()}.json`;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   toast("Backup baixado");
@@ -610,7 +665,7 @@ function importar(file) {
       const s = JSON.parse(r.result);
       if (!Array.isArray(s.items) || !Array.isArray(s.lotes) || !s.config) throw 0;
       state = s; save(); toast("Backup restaurado"); location.hash = "#painel"; render();
-    } catch (e) { toast("Esse arquivo não é um backup do Sobrevivente Urbano."); }
+    } catch (e) { toast("Esse arquivo não é um backup do GraySafe Hub."); }
   };
   r.readAsText(file);
 }
@@ -618,6 +673,12 @@ function importar(file) {
 function atualizarRede() {
   document.getElementById("netStatus").hidden = navigator.onLine;
 }
+
+function relogio() {
+  document.getElementById("clock").textContent = horaAgora();
+}
+setInterval(relogio, 1000);
+relogio();
 
 load();
 window.addEventListener("hashchange", render);

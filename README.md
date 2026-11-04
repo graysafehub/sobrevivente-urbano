@@ -1,6 +1,6 @@
-# Sobrevivente Urbano
+# GraySafe Hub
 
-App de celular para controlar os insumos da família para crises. Funciona sem internet.
+Projeto Sobrevivente Urbano. App de celular para controlar os insumos da família para crises. Funciona sem internet.
 
 ## O que já faz (versão 1)
 
@@ -10,7 +10,7 @@ App de celular para controlar os insumos da família para crises. Funciona sem i
 - **Descarte:** remove um lote vencido e registra no histórico.
 - **Semáforo:** vermelho (vencido ou abaixo da meta), amarelo (perto de vencer) e verde.
 - **Alertas por item:** quantos dias antes de vencer avisar (padrão 60, ajustável em Mais) e um mínimo de quantidade. Com mínimo, o item fica amarelo abaixo da meta e vermelho abaixo do mínimo.
-- **Painel:** progresso de cada degrau, dias de água e o que consumir primeiro.
+- **Hub:** Supply Grid com dias de autonomia por categoria (água, ração, energia, saúde, bebê), progresso de cada degrau, alertas e registro de eventos.
 - **Lista de compras:** o que falta para a meta atual.
 - **Backup:** gera um arquivo para baixar e restaurar.
 - **Versão para imprimir:** inventário em papel.

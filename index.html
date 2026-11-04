@@ -3,26 +3,30 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#1f6f6b">
-  <title>Sobrevivente Urbano</title>
+  <meta name="theme-color" content="#000000">
+  <title>GraySafe Hub</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="topbar">
-    <span class="brand">Sobrevivente Urbano</span>
-    <span class="offline" id="netStatus" hidden>sem internet</span>
+    <span class="brand">GraySafe Hub</span>
+    <span class="offline" id="netStatus" hidden>offline</span>
+    <span class="clock" id="clock"></span>
   </header>
 
   <main id="view" class="view"></main>
 
   <nav class="tabbar" aria-label="Navegação">
-    <a href="#painel" data-route="painel"><span class="ico" aria-hidden="true">◎</span>Painel</a>
+    <a href="#painel" data-route="painel"><span class="ico" aria-hidden="true">◎</span>Hub</a>
     <a href="#estoque" data-route="estoque"><span class="ico" aria-hidden="true">▤</span>Estoque</a>
-    <a href="#entrada" data-route="entrada" class="primary"><span class="ico" aria-hidden="true">＋</span>Entrada</a>
+    <a href="#entrada" data-route="entrada" class="primary"><span class="ico" aria-hidden="true">+</span>Entrada</a>
     <a href="#compras" data-route="compras"><span class="ico" aria-hidden="true">☐</span>Compras</a>
-    <a href="#mais" data-route="mais"><span class="ico" aria-hidden="true">⋯</span>Mais</a>
+    <a href="#mais" data-route="mais"><span class="ico" aria-hidden="true">≡</span>Sistema</a>
   </nav>
 
   <div class="toast" id="toast" role="status" hidden></div>
