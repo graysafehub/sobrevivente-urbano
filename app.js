@@ -441,7 +441,7 @@ function guiaHtml(it) {
   const parte = (t, txt) => txt ? `<div><span class="lbl">${t}</span><p>${esc(txt)}</p></div>` : "";
   return `<div class="card guia">
     <h2>Guia de compra</h2>
-    ${parte("Como escolher", g.escolher)}${parte("Como guardar", g.armazenar)}${parte("Como preparar", g.preparar)}
+    ${parte("Como escolher", g.escolher)}${parte("Como guardar", g.armazenar)}${parte("Como preparar para guardar", g.preparar)}
   </div>`;
 }
 
