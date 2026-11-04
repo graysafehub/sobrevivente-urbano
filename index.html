@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1f6f6b">
+  <title>Sobrevivente Urbano</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <span class="brand">Sobrevivente Urbano</span>
+    <span class="offline" id="netStatus" hidden>sem internet</span>
+  </header>
+
+  <main id="view" class="view"></main>
+
+  <nav class="tabbar" aria-label="Navegação">
+    <a href="#painel" data-route="painel"><span class="ico" aria-hidden="true">◎</span>Painel</a>
+    <a href="#estoque" data-route="estoque"><span class="ico" aria-hidden="true">▤</span>Estoque</a>
+    <a href="#entrada" data-route="entrada" class="primary"><span class="ico" aria-hidden="true">＋</span>Entrada</a>
+    <a href="#compras" data-route="compras"><span class="ico" aria-hidden="true">☐</span>Compras</a>
+    <a href="#mais" data-route="mais"><span class="ico" aria-hidden="true">⋯</span>Mais</a>
+  </nav>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+
+  <script src="seed.js"></script>
+  <script src="app.js"></script>
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+    }
+  </script>
+</body>
+</html>
