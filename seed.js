@@ -49,6 +49,19 @@ window.SEED_ITEMS = [
   { nome: "Dinheiro em espécie (notas pequenas)", categoria: "Documentos e dinheiro", unidade: "R$", metas: [100, 200, 300], validade: false },
 ];
 
+// As metas acima são para a família base. No app, elas crescem com as fichas da família:
+// "pessoa" = proporcional ao número de pessoas, "bebe" = ao número de bebês (até 2 anos), "fixo" = não muda.
+window.BASE_FAMILIA = { pessoas: 5, bebes: 1 };
+const ESCALA_BEBE = ["Fraldas", "Lenço umedecido", "Pomada para assadura"];
+const ESCALA_FIXA = [
+  "Hipoclorito de sódio 2,5%", "Balde com tampa", "Lanterna LED", "Pilhas", "Power bank", "Fósforo ou isqueiro",
+  "Rádio a pilha", "Botijão de gás reserva", "Antitérmico infantil", "Termômetro", "Kit de curativos", "Álcool 70%",
+  "Absorventes", "Sacos de lixo resistentes", "Dinheiro em espécie (notas pequenas)",
+];
+for (const i of window.SEED_ITEMS) {
+  i.escala = ESCALA_BEBE.includes(i.nome) ? "bebe" : ESCALA_FIXA.includes(i.nome) ? "fixo" : "pessoa";
+}
+
 window.CATEGORIAS = ["Água", "Comida", "Bebê", "Luz e energia", "Saúde e higiene", "Documentos e dinheiro", "Outros"];
 window.UNIDADES = ["kg", "g", "L", "ml", "un", "pct", "rolo", "R$"];
 window.DEGRAUS = ["3 dias", "1 semana", "2 semanas"];

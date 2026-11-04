@@ -14,10 +14,11 @@ function uid() {
 
 function seedState() {
   const s = {
-    versao: 2,
+    versao: 3,
     items: SEED_ITEMS.map(s => ({ id: uid(), ...s })),
     lotes: [],
     movs: [],
+    codigos: {},
     config: { degrau: 0, pessoas: 5, litrosDia: 4, avisoDias: 60, ultimoBackup: null },
   };
   s.familia = seedFamilia(s.items);
@@ -38,10 +39,13 @@ function seedFamilia(items) {
 function migrar(s) {
   s.config.avisoDias ??= 60;
   for (const it of s.items) {
-    if (it.spec === undefined) it.spec = SEED_ITEMS.find(x => x.nome === it.nome)?.spec || "";
+    const base = SEED_ITEMS.find(x => x.nome === it.nome);
+    if (it.spec === undefined) it.spec = base?.spec || "";
+    if (it.escala === undefined) it.escala = base?.escala || "fixo";
   }
   s.familia ??= seedFamilia(s.items);
-  s.versao = 2;
+  s.codigos ??= {};
+  s.versao = 3;
   return s;
 }
 
@@ -65,6 +69,34 @@ function save() {
 const item = id => state.items.find(i => i.id === id);
 const pessoa = id => state.familia.pessoas.find(p => p.id === id);
 const contato = id => state.familia.contatos.find(c => c.id === id);
+const guiaDe = it => GUIAS[it?.nome];
+
+// ---------- metas pela família ----------
+// com fichas cadastradas, a família é contada por elas; sem fichas, vale o número em Sistema
+function nPessoas() {
+  return state.familia.pessoas.length || state.config.pessoas;
+}
+function nBebes() {
+  const f = state.familia.pessoas;
+  if (!f.length) return BASE_FAMILIA.bebes;
+  return f.filter(p => { const n = idade(p.nascimento); return n !== null && n < 3; }).length;
+}
+function fatorMeta(it) {
+  if (it.escala === "pessoa") return nPessoas() / BASE_FAMILIA.pessoas;
+  if (it.escala === "bebe") return nBebes() / BASE_FAMILIA.bebes;
+  return 1;
+}
+// arredonda para cima: unidades inteiras, dinheiro de 10 em 10, peso e volume de 0,1 em 0,1
+function arredMeta(v, un) {
+  if (!v) return 0;
+  if (["un", "pct", "rolo"].includes(un)) return Math.ceil(v - 1e-9);
+  if (un === "R$") return Math.ceil(v / 10 - 1e-9) * 10;
+  return Math.ceil(v * 10 - 1e-9) / 10;
+}
+function metaDe(it, d) {
+  return arredMeta((it.metas[d] || 0) * fatorMeta(it), it.unidade);
+}
+const ESCALAS = { pessoa: "cada pessoa", bebe: "cada bebê (até 2 anos)", fixo: "não muda com a família" };
 
 // ---------- datas e cálculos ----------
 
@@ -136,7 +168,7 @@ const vencendo = (l, it) => { const d = diasAte(l.validade); return d >= 0 && d 
 // com mínimo: abaixo do mínimo é vermelho, entre o mínimo e a meta é amarelo
 function situacao(it) {
   const lotes = lotesDe(it.id);
-  const meta = it.metas[state.config.degrau] || 0;
+  const meta = metaDe(it, state.config.degrau);
   const qtd = qtdValida(it.id);
   if (lotes.some(l => diasAte(l.validade) < 0)) return { cor: "vermelho", motivo: "tem lote vencido" };
   if (temMinimo(it) && qtd < it.minimo) return { cor: "vermelho", motivo: "abaixo do mínimo" };
@@ -148,8 +180,8 @@ function situacao(it) {
 }
 
 function progressoDegrau(d) {
-  const alvo = state.items.filter(i => (i.metas[d] || 0) > 0);
-  const ok = alvo.filter(i => qtdValida(i.id) >= i.metas[d]).length;
+  const alvo = state.items.filter(i => metaDe(i, d) > 0);
+  const ok = alvo.filter(i => qtdValida(i.id) >= metaDe(i, d)).length;
   return { ok, total: alvo.length };
 }
 
@@ -211,11 +243,11 @@ function diasCategoria(cat) {
   const c = state.config;
   if (cat === "Água") {
     const agua = state.items.find(i => i.nome.startsWith("Água potável"));
-    return Math.floor((agua ? qtdValida(agua.id) : 0) / (c.pessoas * c.litrosDia));
+    return Math.floor((agua ? qtdValida(agua.id) : 0) / (nPessoas() * c.litrosDia));
   }
-  const its = state.items.filter(i => i.categoria === cat && (i.metas[2] || 0) > 0);
+  const its = state.items.filter(i => i.categoria === cat && metaDe(i, 2) > 0);
   if (!its.length) return null;
-  const ds = its.map(i => Math.min(qtdValida(i.id) / (i.metas[2] / 14), 14));
+  const ds = its.map(i => Math.min(qtdValida(i.id) / (metaDe(i, 2) / 14), 14));
   return Math.floor(ds.reduce((s, d) => s + d, 0) / ds.length);
 }
 
@@ -231,7 +263,7 @@ function viewPainel() {
   const vencidos = state.lotes.filter(l => diasAte(l.validade) < 0);
   const aVencer = state.lotes.filter(l => vencendo(l, item(l.itemId)))
     .sort((a, b) => a.validade < b.validade ? -1 : 1);
-  const acabando = state.items.filter(i => temMinimo(i) ? qtdValida(i.id) < i.minimo : qtdValida(i.id) < (i.metas[c.degrau] || 0));
+  const acabando = state.items.filter(i => temMinimo(i) ? qtdValida(i.id) < i.minimo : qtdValida(i.id) < metaDe(i, c.degrau));
 
   const diasBackup = c.ultimoBackup ? -diasAte(c.ultimoBackup) : null;
   const avisoBackup = diasBackup === null ? "Nenhum backup feito."
@@ -270,7 +302,7 @@ function viewPainel() {
           <span class="scale"><span style="left:0">0</span><span style="left:${3 / 14 * 100}%">3</span><span style="left:50%">7</span><span style="right:0">14</span></span>
         </div>
       </div>
-      <p class="sub">Água pelo consumo de ${c.pessoas} pessoas × ${c.litrosDia} L. Demais: estimativa pelas metas de 2 semanas.</p>
+      <p class="sub">Água pelo consumo de ${nPessoas()} pessoas × ${c.litrosDia} L. Demais: estimativa pelas metas de 2 semanas.</p>
     </div>
 
     <div class="grid3">
@@ -327,7 +359,7 @@ function viewEstoque(filtro) {
       <h2>${esc(cat)}</h2>
       <ul class="rows">${its.sort((a, b) => a.nome.localeCompare(b.nome)).map(i => {
         const s = situacao(i);
-        const meta = i.metas[state.config.degrau] || 0;
+        const meta = metaDe(i, state.config.degrau);
         const prox = lotesDe(i.id)[0];
         const specs = specsDe(i.id);
         return `<li><a href="#item/${i.id}">
@@ -360,17 +392,18 @@ function viewItem(id) {
     <a class="back" href="#estoque">‹ Estoque</a>
     <div class="head"><h1>${esc(it.nome)}</h1><span class="badge ${s.cor}">${s.motivo}</span></div>
     ${it.dica ? `<p class="sub">${esc(it.dica)}</p>` : ""}
+    ${guiaHtml(it)}
     <p class="sub">Alertas: ${it.validade ? `avisa ${avisoDe(it)} dias antes de vencer · ` : ""}${temMinimo(it) ? `avisa abaixo de ${fmtQtd(it.minimo, it.unidade)}` : "avisa abaixo da meta"}</p>
 
     <div class="grid3">
-      ${DEGRAUS.map((d, i) => `<div class="tile ${i === state.config.degrau ? "atual" : ""}"><span class="lbl">Meta ${d}</span><b class="sm">${it.metas[i] ? fmtQtd(it.metas[i], it.unidade) : "—"}</b></div>`).join("")}
+      ${DEGRAUS.map((d, i) => `<div class="tile ${i === state.config.degrau ? "atual" : ""}"><span class="lbl">Meta ${d}</span><b class="sm">${metaDe(it, i) ? fmtQtd(metaDe(it, i), it.unidade) : "—"}</b></div>`).join("")}
     </div>
 
     <div class="card">
       <div class="head"><h2>Em casa: ${fmtQtd(qtdTotal(id), it.unidade)}</h2></div>
       ${lotes.length ? `<ul class="rows">${lotes.map(l => `
         <li><div class="lote">
-          <span class="grow"><b>${fmtQtd(l.qtd, it.unidade)}</b>${l.spec ? ` <span class="spec">${esc(l.spec)}</span>` : ""}${l.local ? `<span class="sub"> · ${esc(l.local)}</span>` : ""}<br>${badgeValidade(l.validade, it)}</span>
+          <span class="grow"><b>${fmtQtd(l.qtd, it.unidade)}</b>${l.spec ? ` <span class="spec">${esc(l.spec)}</span>` : ""}${l.marca ? `<span class="sub"> · ${esc(l.marca)}</span>` : ""}${l.local ? `<span class="sub"> · ${esc(l.local)}</span>` : ""}<br>${badgeValidade(l.validade, it)}</span>
           <button class="btn small ghost" data-descartar="${l.id}">Descartar</button>
         </div></li>`).join("")}</ul>` : `<p class="empty">Nada em casa ainda.</p>`}
     </div>
@@ -381,10 +414,12 @@ function viewItem(id) {
       <a class="btn ghost" href="#editar/${id}">Editar</a>
     </div>
 
+    ${codigosHtml(it)}
+
     <div class="card">
       <h2>Histórico</h2>
       ${movs.length ? `<ul class="rows">${movs.map(m => `<li><div class="lote">
-        <span class="grow">${fmtData(m.data)}${m.hora ? " " + m.hora.slice(0, 5) : ""} · ${m.tipo}${m.spec ? ` · ${esc(m.spec)}` : ""}${m.nota ? ` · ${esc(m.nota)}` : ""}</span>
+        <span class="grow">${fmtData(m.data)}${m.hora ? " " + m.hora.slice(0, 5) : ""} · ${m.tipo}${m.marca ? ` · ${esc(m.marca)}` : ""}${m.spec ? ` · ${esc(m.spec)}` : ""}${m.nota ? ` · ${esc(m.nota)}` : ""}</span>
         <span class="qty ${m.tipo === "entrada" ? "pos" : "neg"}">${m.tipo === "entrada" ? "+" : "−"}${fmtQtd(m.qtd, it.unidade)}</span>
       </div></li>`).join("")}</ul>` : `<p class="empty">Sem movimentações.</p>`}
     </div>
@@ -400,12 +435,38 @@ function specPlaceholder(it) {
   return it?.spec ? "" : "Ex.: tamanho, capacidade, marca";
 }
 
+function guiaHtml(it) {
+  const g = guiaDe(it);
+  if (!g) return "";
+  const parte = (t, txt) => txt ? `<div><span class="lbl">${t}</span><p>${esc(txt)}</p></div>` : "";
+  return `<div class="card guia">
+    <h2>Guia de compra</h2>
+    ${parte("Como escolher", g.escolher)}${parte("Como guardar", g.armazenar)}${parte("Como preparar", g.preparar)}
+  </div>`;
+}
+
+function codigosHtml(it) {
+  const cods = Object.entries(state.codigos).filter(([, c]) => c.itemId === it.id);
+  if (!cods.length) return "";
+  return `<div class="card">
+    <h2>Códigos de barras</h2>
+    <ul class="rows">${cods.map(([cod, c]) => `<li><div class="lote">
+      <span class="grow"><span class="nm">${esc(c.marca || "sem marca")}</span><span class="sub">${esc(cod)}${c.spec ? " · " + esc(c.spec) : ""}</span></span>
+      <button class="btn small ghost" data-cod-del="${esc(cod)}" type="button">Desligar</button>
+    </div></li>`).join("")}</ul>
+    <p class="sub">Mesmo produto e marca, mesmo código. Desligue um código se ele foi ligado ao item errado.</p>
+  </div>`;
+}
+
 function viewEntrada(id) {
   const it = id ? item(id) : null;
   return `
   <section class="stack">
     <h1>Entrada</h1>
     <form id="fEntrada" class="card form">
+      <button class="btn ghost" id="bScan" type="button">▥ Ler código de barras</button>
+      <input id="eCod" type="hidden">
+      <p class="sub" id="eCodInfo" hidden></p>
       <label>Item<select id="eItem" required><option value="">Escolha…</option>${itemOptions(id)}</select></label>
       <a class="sub link" href="#novo">Não está na lista? Cadastrar novo item</a>
       <div class="row2">
@@ -414,6 +475,7 @@ function viewEntrada(id) {
       </div>
       <label id="eSpecWrap">${specLabel(it)}<input id="eSpec" value="${esc(it ? ultimaSpec(it.id) : "")}" placeholder="${esc(specPlaceholder(it))}"></label>
       <label id="eValWrap" ${it && !it.validade ? "hidden" : ""}>Validade<input id="eVal" type="date"></label>
+      <label>Marca <span class="opt">(opcional)</span><input id="eMarca" placeholder="Ex.: Tio João"></label>
       <label>Onde guardou <span class="opt">(opcional)</span><input id="eLocal" placeholder="Ex.: armário da cozinha"></label>
       <label>Observação <span class="opt">(opcional)</span><input id="eNota" placeholder="Ex.: mercado, promoção"></label>
       <button class="btn" type="submit">Registrar entrada</button>
@@ -439,7 +501,7 @@ function viewSaida(id) {
 }
 
 function viewEditar(id) {
-  const it = id ? item(id) : { nome: "", categoria: "Comida", unidade: "un", metas: [0, 0, 0], validade: true, dica: "" };
+  const it = id ? item(id) : { nome: "", categoria: "Comida", unidade: "un", metas: [0, 0, 0], escala: "fixo", validade: true, dica: "" };
   if (!it) return `<p class="empty">Item não encontrado.</p>`;
   return `
   <section class="stack">
@@ -451,8 +513,9 @@ function viewEditar(id) {
         <label>Categoria<select id="iCat">${CATEGORIAS.map(c => `<option ${c === it.categoria ? "selected" : ""}>${c}</option>`).join("")}</select></label>
         <label>Unidade<select id="iUn">${UNIDADES.map(u => `<option ${u === it.unidade ? "selected" : ""}>${u}</option>`).join("")}</select></label>
       </div>
-      <fieldset><legend>Metas</legend>
-        <div class="row3">${DEGRAUS.map((d, i) => `<label>${d}<input id="iM${i}" type="number" inputmode="decimal" step="any" min="0" value="${it.metas[i] || 0}"></label>`).join("")}</div>
+      <fieldset><legend>Metas para ${nPessoas()} pessoas</legend>
+        <div class="row3">${DEGRAUS.map((d, i) => `<label>${d}<input id="iM${i}" type="number" inputmode="decimal" step="any" min="0" value="${metaDe(it, i)}"></label>`).join("")}</div>
+        <label>A meta cresce com<select id="iEsc">${Object.entries(ESCALAS).map(([k, t]) => `<option value="${k}" ${k === (it.escala || "fixo") ? "selected" : ""}>${t}</option>`).join("")}</select></label>
       </fieldset>
       <label class="check"><input id="iVal" type="checkbox" ${it.validade ? "checked" : ""}> Tem data de validade</label>
       <fieldset><legend>Alertas deste item</legend>
@@ -474,17 +537,21 @@ function viewCompras() {
   const d = state.config.degrau;
   const grupos = CATEGORIAS.map(cat => {
     const falta = state.items.filter(i => i.categoria === cat)
-      .map(i => ({ i, f: (i.metas[d] || 0) - qtdValida(i.id) }))
+      .map(i => ({ i, f: metaDe(i, d) - qtdValida(i.id) }))
       .filter(x => x.f > 0);
     if (!falta.length) return "";
     return `<div class="card flush"><h2>${esc(cat)}</h2><ul class="rows">${falta.map(x =>
-      `<li><a href="#entrada/${x.i.id}"><span class="grow">${esc(x.i.nome)}</span><span class="qty">${fmtQtd(x.f, x.i.unidade)}</span></a></li>`).join("")}</ul></div>`;
+      `<li><div class="lote">
+        <a class="grow plain" href="#item/${x.i.id}"><span class="nm">${esc(x.i.nome)}</span>${guiaDe(x.i) ? `<span class="sub">ver como escolher ›</span>` : ""}</a>
+        <span class="qty">${fmtQtd(x.f, x.i.unidade)}</span>
+        <a class="btn small" href="#entrada/${x.i.id}" aria-label="Registrar compra de ${esc(x.i.nome)}">+</a>
+      </div></li>`).join("")}</ul></div>`;
   }).join("");
   const proximo = d < 2 ? `<p class="sub">Quando completar, mude a meta para ${DEGRAUS[d + 1]} no Painel.</p>` : "";
   return `
   <section class="stack">
     <h1>Lista de compras</h1>
-    <p class="sub">O que falta para a meta de ${DEGRAUS[d]}. Toque no item para registrar a compra.</p>
+    <p class="sub">O que falta para a meta de ${DEGRAUS[d]}. Toque no item para ver como escolher e guardar; + registra a compra.</p>
     ${grupos || `<div class="card"><b>Meta de ${DEGRAUS[d]} completa.</b>${proximo}</div>`}
   </section>`;
 }
@@ -511,9 +578,10 @@ function viewMais() {
     <form class="card form" id="fCfg">
       <h2>Família e alertas</h2>
       <div class="row2">
-        <label>Pessoas na casa<input id="cPessoas" type="number" min="1" value="${c.pessoas}"></label>
+        <label>Pessoas na casa<input id="cPessoas" type="number" min="1" value="${nPessoas()}" ${state.familia.pessoas.length ? "disabled" : ""}></label>
         <label>Litros de água por pessoa/dia<input id="cLitros" type="number" min="1" step="0.5" value="${c.litrosDia}"></label>
       </div>
+      ${state.familia.pessoas.length ? `<p class="sub">Pessoas contadas pelas fichas em Família.</p>` : ""}
       <label>Aviso padrão de validade (dias antes)<input id="cAviso" type="number" min="0" value="${c.avisoDias}"></label>
       <p class="sub">Vale para os itens sem aviso próprio. Cada item pode ter o seu em Estoque › item › Editar.</p>
       <button class="btn ghost" type="submit">Salvar</button>
@@ -547,7 +615,7 @@ function viewImprimir() {
   <section class="print">
     <div class="noprint actions"><a class="btn ghost" href="#mais">‹ Voltar</a><button class="btn" id="bPrint" type="button">Imprimir</button></div>
     <h1>GraySafe Hub · Inventário</h1>
-    <p>Gerado em ${fmtData(isoHoje())} · meta atual: ${DEGRAUS[d]} · ${state.config.pessoas} pessoas</p>
+    <p>Gerado em ${fmtData(isoHoje())} · meta atual: ${DEGRAUS[d]} · ${nPessoas()} pessoas</p>
     <table>
       <thead><tr><th>Item</th><th>Em casa</th><th>Meta</th><th>Lotes</th></tr></thead>
       <tbody>${CATEGORIAS.map(cat => {
@@ -556,7 +624,7 @@ function viewImprimir() {
         return `<tr class="cat"><td colspan="4">${esc(cat)}</td></tr>` + its.map(i => `<tr>
           <td>${esc(i.nome)}</td>
           <td>${fmtQtd(qtdTotal(i.id), i.unidade)}</td>
-          <td>${i.metas[d] ? fmtQtd(i.metas[d], i.unidade) : "—"}</td>
+          <td>${metaDe(i, d) ? fmtQtd(metaDe(i, d), i.unidade) : "—"}</td>
           <td>${lotesDe(i.id).filter(l => l.validade || l.spec).map(l => `${fmtQtd(l.qtd, i.unidade)}${l.spec ? ` ${esc(l.spec)}` : ""}${l.validade ? ` até ${fmtData(l.validade)}` : ""}`).join("; ") || "—"}</td>
         </tr>`).join("");
       }).join("")}</tbody>
@@ -600,7 +668,9 @@ function viewFamilia() {
         <span class="grow"><span class="nm">${esc(p.nome)}</span><span class="sub">${[fmtIdade(p.nascimento), p.alergias && "alergia: " + p.alergias, p.remedios && "remédio: " + p.remedios].filter(Boolean).map(esc).join(" · ")}</span></span>
         ${p.sangue ? `<span class="badge">${esc(p.sangue)}</span>` : ""}
       </a></li>`).join("")}</ul>` : `<p class="empty">Nenhuma ficha. Comece por quem tem alergia ou remédio de uso contínuo.</p>`}
-      ${f.pessoas.length && f.pessoas.length !== naCasa ? `<p class="sub">${f.pessoas.length} de ${naCasa} pessoas da casa com ficha.</p>` : ""}
+      <p class="sub">${f.pessoas.length
+        ? `As metas do estoque são calculadas para estas ${f.pessoas.length} ${f.pessoas.length === 1 ? "pessoa" : "pessoas"}${nBebes() ? ` (${nBebes()} ${nBebes() === 1 ? "bebê" : "bebês"} até 2 anos)` : ""}. Cadastre todos da casa.`
+        : `Enquanto não houver fichas, as metas usam ${naCasa} pessoas (Sistema).`}</p>
     </div>
 
     <div class="card">
@@ -712,6 +782,7 @@ function viewCartao(id) {
 // ---------- roteador ----------
 
 function render() {
+  fecharLeitor();
   const [rota, arg] = (location.hash.slice(1) || "painel").split("/");
   const telas = {
     painel: () => viewPainel(),
@@ -760,6 +831,8 @@ document.addEventListener("change", e => {
   if (t.id === "cfgDegrau") { state.config.degrau = +t.value; save(); render(); }
   if (t.id === "eItem") {
     const it = item(t.value);
+    // trocar o item à mão desfaz a leitura do código
+    if (e.isTrusted) { document.getElementById("eCod").value = ""; document.getElementById("eCodInfo").hidden = true; }
     document.getElementById("eUn").value = it?.unidade || "";
     document.getElementById("eValWrap").hidden = it ? !it.validade : false;
     const w = document.getElementById("eSpecWrap");
@@ -789,8 +862,11 @@ document.addEventListener("submit", e => {
     const validade = it.validade ? document.getElementById("eVal").value || null : null;
     if (it.validade && !validade) return toast("Informe a validade.");
     const spec = document.getElementById("eSpec").value.trim();
-    state.lotes.push({ id: uid(), itemId: it.id, qtd, validade, spec, local: document.getElementById("eLocal").value.trim(), criado: isoHoje() });
-    state.movs.push({ id: uid(), itemId: it.id, tipo: "entrada", qtd, spec, data: isoHoje(), hora: horaAgora(), nota: document.getElementById("eNota").value.trim() });
+    const marca = document.getElementById("eMarca").value.trim();
+    const cod = document.getElementById("eCod").value;
+    if (cod && state.codigos[cod]) Object.assign(state.codigos[cod], { marca: marca || state.codigos[cod].marca, spec: spec || state.codigos[cod].spec });
+    state.lotes.push({ id: uid(), itemId: it.id, qtd, validade, spec, marca, codigo: cod || null, local: document.getElementById("eLocal").value.trim(), criado: isoHoje() });
+    state.movs.push({ id: uid(), itemId: it.id, tipo: "entrada", qtd, spec, marca, data: isoHoje(), hora: horaAgora(), nota: document.getElementById("eNota").value.trim() });
     save(); toast(`Entrada registrada: ${fmtQtd(qtd, it.unidade)} de ${it.nome}`);
     location.hash = "#item/" + it.id;
   }
@@ -808,11 +884,16 @@ document.addEventListener("submit", e => {
   }
 
   if (f.id === "fItem") {
+    // a tela mostra a meta para a família atual; guarda a meta da família base
+    const escala = document.getElementById("iEsc").value;
+    const fator = fatorMeta({ escala });
+    const antigas = f.dataset.id ? item(f.dataset.id).metas : [0, 0, 0];
     const dados = {
       nome: document.getElementById("iNome").value.trim(),
       categoria: document.getElementById("iCat").value,
       unidade: document.getElementById("iUn").value,
-      metas: [0, 1, 2].map(i => num("iM" + i) || 0),
+      metas: [0, 1, 2].map(i => fator > 0 ? (num("iM" + i) || 0) / fator : antigas[i]),
+      escala,
       validade: document.getElementById("iVal").checked,
       spec: document.getElementById("iSpec").value.trim(),
       dica: document.getElementById("iDica").value.trim(),
@@ -859,8 +940,14 @@ document.addEventListener("submit", e => {
     save(); render();
   }
 
+  if (f.id === "fCodigo") {
+    const cod = document.getElementById("scanManual").value.replace(/\D/g, "");
+    if (cod.length < 6) return toast("Digite os números do código de barras.");
+    codigoLido(cod);
+  }
+
   if (f.id === "fCfg") {
-    state.config.pessoas = Math.max(1, Math.round(num("cPessoas")) || 5);
+    if (!state.familia.pessoas.length) state.config.pessoas = Math.max(1, Math.round(num("cPessoas")) || 5);
     state.config.litrosDia = Math.max(1, num("cLitros") || 4);
     state.config.avisoDias = campoOpcional("cAviso") ?? 60;
     save(); toast("Configuração salva");
@@ -908,6 +995,7 @@ document.addEventListener("click", e => {
     state.lotes = state.lotes.filter(l => l.itemId !== id);
     state.movs = state.movs.filter(m => m.itemId !== id);
     state.familia.mochila.forEach(m => { if (m.itemId === id) m.itemId = null; });
+    for (const [cod, c] of Object.entries(state.codigos)) if (c.itemId === id) delete state.codigos[cod];
     save(); toast("Item excluído"); location.hash = "#estoque";
   }
 
@@ -919,7 +1007,122 @@ document.addEventListener("click", e => {
   if (t.id === "resetYes") { state = seedState(); save(); toast("Tudo apagado"); location.hash = "#painel"; render(); }
 
   if (t.id === "bExport") exportar();
+  if (t.id === "bScan") abrirLeitor();
+  if (t.id === "scanFechar") fecharLeitor();
+  if (t.dataset.vincular) vincularCodigo(t.dataset.vincular);
+  if (t.dataset.codDel) {
+    delete state.codigos[t.dataset.codDel];
+    save(); toast("Código desligado do item"); render();
+  }
   if (t.id === "bPrint") window.print();
+});
+
+// ---------- código de barras ----------
+// usa o leitor nativo do Chrome (BarcodeDetector), que funciona sem internet.
+// código conhecido preenche a entrada; código novo pede para dizer de qual item é.
+
+let leitor = null;  // { stream, timer }
+
+async function abrirLeitor() {
+  fecharLeitor();
+  const ov = document.createElement("div");
+  ov.className = "scanner";
+  ov.innerHTML = `
+    <h1>Código de barras</h1>
+    <div class="scan-box"><video id="scanVideo" playsinline muted></video><span class="scan-mira"></span></div>
+    <p class="sub" id="scanMsg">Abrindo a câmera…</p>
+    <form id="fCodigo" class="row-cod"><input id="scanManual" inputmode="numeric" placeholder="ou digite os números" aria-label="Código de barras"><button class="btn small" type="submit">OK</button></form>
+    <button class="btn ghost" id="scanFechar" type="button">Cancelar</button>`;
+  document.body.appendChild(ov);
+  const msg = t => { const el = document.getElementById("scanMsg"); if (el) el.textContent = t; };
+  if (!("BarcodeDetector" in window) || !navigator.mediaDevices?.getUserMedia) {
+    document.querySelector(".scan-box").hidden = true;
+    return msg("Este navegador não lê códigos pela câmera. Digite os números que ficam embaixo das barras.");
+  }
+  try {
+    const formatos = (await BarcodeDetector.getSupportedFormats()).filter(f => ["ean_13", "ean_8", "upc_a", "upc_e", "code_128"].includes(f));
+    const det = new BarcodeDetector({ formats: formatos });
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+    leitor = { stream, timer: null };
+    const v = document.getElementById("scanVideo");
+    if (!v) return fecharLeitor();
+    v.srcObject = stream;
+    await v.play();
+    msg("Aponte para as barras e segure firme.");
+    const ler = async () => {
+      if (!leitor) return;
+      try {
+        const r = await det.detect(v);
+        if (r.length) return codigoLido(r[0].rawValue);
+      } catch (e) {}
+      leitor.timer = setTimeout(ler, 200);
+    };
+    ler();
+  } catch (e) {
+    document.querySelector(".scan-box").hidden = true;
+    msg("Sem acesso à câmera. Permita a câmera para o app ou digite os números do código.");
+  }
+}
+
+function fecharLeitor() {
+  if (leitor) {
+    clearTimeout(leitor.timer);
+    leitor.stream.getTracks().forEach(t => t.stop());
+    leitor = null;
+  }
+  document.querySelectorAll(".scanner").forEach(el => el.remove());
+}
+
+function codigoLido(cod) {
+  fecharLeitor();
+  if (state.codigos[cod] && item(state.codigos[cod].itemId)) return aplicarCodigo(cod);
+  // código novo: escolher o item
+  const ov = document.createElement("div");
+  ov.className = "scanner";
+  ov.dataset.cod = cod;
+  ov.innerHTML = `
+    <div class="head"><h1>Código novo</h1><button class="btn small ghost" id="scanFechar" type="button">Cancelar</button></div>
+    <p class="sub">${esc(cod)}. De qual item é? Fica gravado: na próxima vez o app já sabe.</p>
+    <label class="form-lbl">Marca <span class="opt">(opcional)</span><input id="vMarca" placeholder="Ex.: Tio João"></label>
+    <input id="vBusca" type="search" placeholder="Buscar item" aria-label="Buscar item">
+    <ul class="rows vlist">${CATEGORIAS.map(cat => state.items.filter(i => i.categoria === cat).sort((a, b) => a.nome.localeCompare(b.nome)).map(i =>
+      `<li data-busca="${esc((i.nome + " " + cat).toLowerCase())}"><button class="vrow" data-vincular="${i.id}" type="button"><span class="nm">${esc(i.nome)}</span><span class="sub">${esc(cat)}</span></button></li>`).join("")).join("")}</ul>
+    <a class="sub link" href="#novo">Não está na lista? Cadastrar novo item</a>`;
+  document.body.appendChild(ov);
+  document.getElementById("vMarca").focus();
+}
+
+function vincularCodigo(itemId) {
+  const ov = document.querySelector(".scanner[data-cod]");
+  if (!ov) return;
+  const cod = ov.dataset.cod;
+  state.codigos[cod] = { itemId, marca: document.getElementById("vMarca").value.trim(), spec: "" };
+  save();
+  fecharLeitor();
+  aplicarCodigo(cod);
+}
+
+function aplicarCodigo(cod) {
+  const c = state.codigos[cod];
+  const it = item(c.itemId);
+  const sel = document.getElementById("eItem");
+  if (!sel) { location.hash = "#entrada/" + it.id; return; }
+  sel.value = it.id;
+  sel.dispatchEvent(new Event("change", { bubbles: true }));
+  document.getElementById("eCod").value = cod;
+  if (c.spec) document.getElementById("eSpec").value = c.spec;
+  document.getElementById("eMarca").value = c.marca || "";
+  const info = document.getElementById("eCodInfo");
+  info.textContent = `Código ${cod} · ${it.nome}${c.marca ? " · " + c.marca : ""}`;
+  info.hidden = false;
+  toast(`Reconhecido: ${it.nome}`);
+  document.getElementById("eQtd").focus();
+}
+
+document.addEventListener("input", e => {
+  if (e.target.id !== "vBusca") return;
+  const q = e.target.value.trim().toLowerCase();
+  document.querySelectorAll(".vlist li").forEach(li => (li.hidden = q && !li.dataset.busca.includes(q)));
 });
 
 function exportar() {

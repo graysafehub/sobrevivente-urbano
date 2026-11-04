@@ -26,13 +26,20 @@ Projeto Sobrevivente Urbano. App de celular para controlar os insumos da famíli
 
 Dados antigos e backups antigos são convertidos sozinhos ao abrir.
 
+## Versão 3
+
+- **Metas pela família:** com fichas cadastradas, as metas usam o número de pessoas das fichas. Cada item tem uma regra (Editar › "A meta cresce com"): por pessoa (comida, água, higiene), por bebê de até 2 anos (fraldas, lenço, pomada) ou fixa (lanterna, rádio, kit…). As metas do catálogo são para a família base de 5 pessoas com 1 bebê.
+- **Guia de compra:** cada item do catálogo mostra como escolher, como guardar e como preparar. Na lista de compras, tocar no item abre o guia; o `+` registra a compra.
+- **Código de barras:** na Entrada, "Ler código de barras" usa a câmera (leitor nativo do Chrome no Android, funciona offline). Código novo: o app pergunta de qual item é e a marca, e grava. Código conhecido: preenche item, marca e especificação. Mesmo produto e marca, mesmo código; outra marca, outro código. Os códigos de um item aparecem na tela dele e podem ser desligados. Sem câmera, dá para digitar os números.
+
 ## Arquivos
 
 | Arquivo | Função |
 |---|---|
 | `index.html` | estrutura da tela |
 | `app.js` | toda a lógica |
-| `seed.js` | catálogo inicial, metas e mochila padrão |
+| `seed.js` | catálogo inicial, metas, regra de cada meta e mochila padrão |
+| `guias.js` | guia de compra de cada item |
 | `styles.css` | visual |
 | `sw.js` | guarda o app no celular para abrir offline |
 | `manifest.webmanifest` + `icons/` | permite instalar na tela inicial |
@@ -49,4 +56,4 @@ Depois abra http://localhost:8765.
 
 ## Ao alterar arquivos
 
-Suba a versão em `sw.js` (hoje `su-v4`) para o celular baixar a versão nova.
+Suba a versão em `sw.js` (hoje `su-v5`) para o celular baixar a versão nova.
