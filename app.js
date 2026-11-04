@@ -72,10 +72,10 @@ function sincronizarCatalogo(s) {
     s.items.push({ id: uid(), base: base.nome, ...base });
   }
   // item criado à mão igual a um do catálogo (mesmo começo de nome, categoria, unidade e cálculo):
-  // fica um só, com o nome e os dados do usuário, ligado ao catálogo
+  // fica o do catálogo, com o que está em casa, o histórico e os dados digitados no outro
   for (const cat of s.items.filter(i => i.base)) {
     for (const dup of s.items.filter(i => !i.base && norm(i.nome).startsWith(norm(cat.base)) && i.categoria === cat.categoria && i.unidade === cat.unidade && (i.escala || "casa") === (cat.escala || "casa"))) {
-      juntarItens(s, cat.id, dup.id);
+      juntarItens(s, dup.id, cat.id);
       break;
     }
   }
