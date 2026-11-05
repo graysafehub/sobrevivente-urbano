@@ -1,8 +1,8 @@
 // Guarda os arquivos do app no aparelho para abrir sem internet.
 // Ao mudar qualquer arquivo, suba a versão para o celular baixar de novo.
-const CACHE = "su-v12";
+const CACHE = "su-v13";
 const ARQUIVOS = [
-  "./", "index.html", "styles.css", "app.js", "seed.js", "guias.js", "crises.js", "zonas.js", "manifest.webmanifest",
+  "./", "index.html", "styles.css", "app.js", "seed.js", "guias.js", "crises.js", "zonas.js", "avisos.js", "manifest.webmanifest",
   "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png",
 ];
 
@@ -29,5 +29,7 @@ self.addEventListener("fetch", e => {
     }))));
     return;
   }
+  // INMET e IBGE: sempre direto da rede; o app guarda a última leitura nos dados
+  if (!e.request.url.startsWith(self.location.origin)) return;
   e.respondWith(caches.match(e.request, { ignoreSearch: true }).then(r => r || fetch(e.request)));
 });

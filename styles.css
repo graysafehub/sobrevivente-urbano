@@ -216,6 +216,20 @@ a.tile { text-decoration: none; color: inherit; }
 .vrow { display: flex; flex-direction: column; align-items: flex-start; width: 100%; padding: 10px 12px; min-height: 48px; background: none; border: 0; color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
 .vrow:active { background: #0f150c; }
 
+/* avisos do INMET */
+.badge.laranja { color: #ff8c1a; border-color: #ff8c1a; }
+.aviso { --c: var(--warn); border-left: 3px solid var(--c); padding: 6px 0 6px 10px; display: flex; flex-direction: column; gap: 6px; font-size: .88rem; }
+.aviso.laranja { --c: #ff8c1a; } .aviso.vermelho { --c: var(--bad-text); }
+.aviso + .aviso, a.plain + a.plain { margin-top: 8px; }
+a.plain { color: inherit; text-decoration: none; display: block; }
+.card.alerta-vermelho { --c: var(--bad); border-color: var(--bad); }
+.aviso details summary { cursor: pointer; color: var(--accent); font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; }
+.aviso details[open] { display: flex; flex-direction: column; gap: 6px; }
+.aviso details p { margin: 6px 0 0; }
+.prev-parte { display: flex; gap: 8px; font-size: .8rem; color: var(--muted); }
+.prev-parte .lbl { min-width: 4.5em; }
+ul.previsao .lote { align-items: flex-start; }
+
 /* zonas: grupos de lugar têm forma e cor próprias */
 :root { --g-casa: var(--accent); --g-encontro: var(--warn); --g-saude: var(--bad-text); --g-abastecimento: #5ec8f2; --g-rotina: #d5dccb; --g-outro: var(--muted); }
 .g-casa { --g: var(--g-casa); } .g-encontro { --g: var(--g-encontro); } .g-saude { --g: var(--g-saude); }

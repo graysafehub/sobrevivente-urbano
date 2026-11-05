@@ -21,6 +21,7 @@ function seedState() {
     movs: [],
     codigos: {},
     zonas: { lugares: [], rotas: [] },
+    avisos: { municipio: null, itens: [], previsao: null, lidoEm: null, erro: "" },
     config: { degrau: 0, pessoas: 5, avisoDias: 60, ultimoBackup: null },
   };
   s.familia = seedFamilia(s.items);
@@ -47,6 +48,7 @@ function migrar(s) {
   s.familia ??= seedFamilia(s.items);
   s.codigos ??= {};
   s.zonas ??= { lugares: [], rotas: [] };
+  s.avisos ??= { municipio: null, itens: [], previsao: null, lidoEm: null, erro: "" };
   if ((s.versao || 1) < 4) migrarBasePorPessoa(s);
   s.versao = 4;
   for (const it of s.items) {
@@ -427,6 +429,8 @@ function viewPainel() {
         <select id="cfgDegrau">${DEGRAUS.map((d, i) => `<option value="${i}" ${i === c.degrau ? "selected" : ""}>${d}</option>`).join("")}</select>
       </label>
     </div>
+
+    ${cardAvisosHub()}
 
     <div class="card">
       <h2><span class="mod">01</span> · Supply grid · dias de autonomia</h2>
@@ -1057,11 +1061,13 @@ function render() {
     zonas: () => viewZonas(),
     lugar: () => viewLugar(arg),
     rota: () => viewRota(arg),
+    avisos: () => viewAvisos(),
   };
   $view.innerHTML = (telas[rota] || telas.painel)();
   zonasAoRenderizar(rota);
+  avisosAoRenderizar(rota);
   document.body.classList.toggle("printing", ["imprimir", "cartao", "crise"].includes(rota));
-  const ativa = { item: "estoque", editar: "estoque", novo: "estoque", saida: "estoque", imprimir: "mais", crises: "painel", crise: "painel", pessoa: "familia", contato: "familia", cartao: "familia", zonas: "familia", lugar: "familia", rota: "familia" }[rota] || rota;
+  const ativa = { item: "estoque", editar: "estoque", novo: "estoque", saida: "estoque", imprimir: "mais", crises: "painel", crise: "painel", pessoa: "familia", contato: "familia", cartao: "familia", zonas: "familia", lugar: "familia", rota: "familia", avisos: "painel" }[rota] || rota;
   document.querySelectorAll(".tabbar a").forEach(a => a.classList.toggle("on", a.dataset.route === ativa));
   window.scrollTo(0, 0);
   if (rota === "mais") mostrarPersistencia();

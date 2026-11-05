@@ -54,6 +54,16 @@ Em Família › "Zonas", ou no Hub.
 - **Rotas:** de um lugar a outro, a pé ou de carro, com caminho principal, alternativo e pontos de atenção, e o botão para abrir no Google Maps (precisa de internet ou da área baixada no Maps).
 - **Papel:** a versão para imprimir traz o radar, a tabela dos lugares com coordenadas e as rotas.
 
+## Avisos (fase 4)
+
+No Hub, no quadro "Avisos do tempo · INMET", e na tela Avisos.
+
+- **Avisos meteorológicos do INMET** (tempestade, chuvas intensas, ventos, baixa umidade, onda de calor…), de hoje e previstos, com riscos, instruções, severidade (amarelo, laranja, vermelho), link para o aviso no INMET e, quando há, o guia de crise ligado.
+- Vale o aviso que cita o município escolhido (código IBGE) ou cuja área cobre a posição de casa gravada em Zonas. A lista vem do país inteiro e é filtrada no aparelho: a localização não é enviada.
+- **Previsão de 5 dias** do INMET para o município (só o código do município vai ao INMET).
+- Lê sozinho ao abrir o Hub, no máximo a cada 30 minutos, quando há internet. A última leitura fica guardada para consultar offline, com a hora; depois de 12 horas sem leitura, o app avisa.
+- **Defesa Civil:** o sistema de alertas (Idap) não libera a leitura por outros sites, então o app orienta o SMS 40199 e os alertas de emergência do Android.
+
 ## Arquivos
 
 | Arquivo | Função |
@@ -64,6 +74,7 @@ Em Família › "Zonas", ou no Hub.
 | `guias.js` | guia de compra de cada item e lista de fontes |
 | `crises.js` | guias de crise |
 | `zonas.js` | lugares, rotas e radar |
+| `avisos.js` | avisos e previsão do INMET |
 | `styles.css` | visual |
 | `sw.js` | guarda o app no celular para abrir offline |
 | `manifest.webmanifest` + `icons/` | permite instalar na tela inicial |
@@ -80,4 +91,4 @@ Depois abra http://localhost:8765.
 
 ## Ao alterar arquivos
 
-Suba a versão em `sw.js` (hoje `su-v12`) para o celular baixar a versão nova.
+Suba a versão em `sw.js` (hoje `su-v13`) para o celular baixar a versão nova.
