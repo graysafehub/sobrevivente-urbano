@@ -384,12 +384,15 @@ document.addEventListener("click", e => {
   if (t.id === "delLugarSim") {
     const id = location.hash.split("/")[1];
     state.zonas.lugares = state.zonas.lugares.filter(l => l.id !== id);
+    state.excluidos.lugares.push(id);
+    state.zonas.rotas.filter(r => r.de === id || r.para === id).forEach(r => state.excluidos.rotas.push(r.id));
     state.zonas.rotas = state.zonas.rotas.filter(r => r.de !== id && r.para !== id);
     save(); toast("Lugar excluído"); location.hash = "#zonas";
   }
   if (t.id === "delRotaSim") {
     const id = location.hash.split("/")[1];
     state.zonas.rotas = state.zonas.rotas.filter(r => r.id !== id);
+    state.excluidos.rotas.push(id);
     save(); toast("Rota excluída"); location.hash = "#zonas";
   }
 });

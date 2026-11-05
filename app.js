@@ -22,6 +22,7 @@ function seedState() {
     codigos: {},
     zonas: { lugares: [], rotas: [] },
     avisos: { municipio: null, itens: [], previsao: null, lidoEm: null, erro: "" },
+    excluidos: novosExcluidos(),
     config: { degrau: 0, pessoas: 5, avisoDias: 60, ultimoBackup: null },
   };
   s.familia = seedFamilia(s.items);
@@ -38,8 +39,14 @@ function seedFamilia(items) {
   };
 }
 
+// o que foi excluído (ou juntado) neste celular, para a junção com outro celular não trazer de volta
+const novosExcluidos = () => ({ items: {}, pessoas: [], contatos: [], mochila: [], lugares: [], rotas: [] });
+
 // dados de versões antigas (e de backups antigos) ganham os campos novos
 function migrar(s) {
+  s.excluidos ??= novosExcluidos();
+  // lote antigo: a quantidade de hoje vira a inicial (as saídas de antes não anotavam o lote)
+  for (const l of s.lotes || []) l.qtdInicial ??= Math.round((l.qtd + (s.movs || []).flatMap(m => m.baixas || []).filter(b => b.lote === l.id).reduce((t, b) => t + b.qtd, 0)) * 1000) / 1000;
   s.config.avisoDias ??= 60;
   for (const it of s.items) {
     const base = SEED_ITEMS.find(x => x.nome === it.nome);
@@ -132,6 +139,7 @@ function juntarItens(s, deId, paraId) {
   if (!para.spec) para.spec = de.spec || "";
   if (!para.dica) para.dica = de.dica || "";
   s.items = s.items.filter(i => i.id !== deId);
+  (s.excluidos ??= novosExcluidos()).items[deId] = paraId;
 }
 
 function load() {
@@ -336,14 +344,16 @@ function progressoDegrau(d) {
   return { ok, total: alvo.length };
 }
 
-// saída: tira primeiro do lote que vence antes (rodízio)
-function darSaida(itemId, qtd) {
+// saída: tira primeiro do lote que vence antes (rodízio). Anota em baixas quanto saiu de cada lote:
+// com isso, ao juntar dois celulares, cada lote é refeito como quantidade inicial − baixas (sync.js)
+function darSaida(itemId, qtd, baixas = []) {
   let resta = qtd;
   for (const l of lotesDe(itemId)) {
     if (resta <= 0) break;
     const tira = Math.min(l.qtd, resta);
     l.qtd = Math.round((l.qtd - tira) * 1000) / 1000;
     resta = Math.round((resta - tira) * 1000) / 1000;
+    baixas.push({ lote: l.id, qtd: tira });
   }
   state.lotes = state.lotes.filter(l => l.qtd > 0);
   return qtd - resta;
@@ -777,9 +787,12 @@ function viewMais() {
     <div class="card form">
       <h2>Backup</h2>
       <p class="sub">${c.ultimoBackup ? `Último backup: ${fmtData(c.ultimoBackup)}.` : "Nenhum backup feito ainda."} Salve o arquivo no Google Drive ou mande para você mesmo no WhatsApp.</p>
-      <button class="btn" id="bExport" type="button">Baixar backup</button>
+      <button class="btn" id="bBackupEnviar" type="button">Enviar backup (WhatsApp, Drive…)</button>
+      <button class="btn ghost" id="bExport" type="button">Baixar backup</button>
       <label class="btn ghost file">Restaurar de um arquivo<input id="bImport" type="file" accept=".json,application/json"></label>
     </div>
+
+    ${cardSync()}
 
     <div class="card form">
       <h2>Versão em papel</h2>
@@ -1147,7 +1160,7 @@ document.addEventListener("submit", e => {
     if (cod && state.codigos[cod]) Object.assign(state.codigos[cod], { marca: marca || state.codigos[cod].marca, spec: spec || state.codigos[cod].spec });
     const pago = num("ePreco");
     const precoUn = it.unidade === "R$" ? 1 : pago > 0 ? Math.round(pago / qtd * 10000) / 10000 : null;
-    state.lotes.push({ id: uid(), itemId: it.id, qtd, validade, spec, marca, codigo: cod || null, precoUn, local: document.getElementById("eLocal").value.trim(), criado: isoHoje() });
+    state.lotes.push({ id: uid(), itemId: it.id, qtd, qtdInicial: qtd, validade, spec, marca, codigo: cod || null, precoUn, local: document.getElementById("eLocal").value.trim(), criado: isoHoje() });
     state.movs.push({ id: uid(), itemId: it.id, tipo: "entrada", qtd, spec, marca, precoUn, data: isoHoje(), hora: horaAgora(), nota: document.getElementById("eNota").value.trim() });
     save(); toast(`Entrada registrada: ${fmtQtd(qtd, it.unidade)} de ${it.nome}`);
     location.hash = "#item/" + it.id;
@@ -1159,8 +1172,9 @@ document.addEventListener("submit", e => {
     if (!it || !(qtd > 0)) return toast("Escolha o item e a quantidade.");
     const disp = qtdTotal(it.id);
     if (qtd > disp) return toast(`Só há ${fmtQtd(disp, it.unidade)} em casa.`);
-    const saiu = darSaida(it.id, qtd);
-    state.movs.push({ id: uid(), itemId: it.id, tipo: document.getElementById("sMotivo").value, qtd: saiu, data: isoHoje(), hora: horaAgora() });
+    const baixas = [];
+    const saiu = darSaida(it.id, qtd, baixas);
+    state.movs.push({ id: uid(), itemId: it.id, tipo: document.getElementById("sMotivo").value, qtd: saiu, baixas, data: isoHoje(), hora: horaAgora() });
     save(); toast(`Saída registrada: ${fmtQtd(saiu, it.unidade)}`);
     location.hash = "#item/" + it.id;
   }
@@ -1248,7 +1262,7 @@ document.addEventListener("click", e => {
     const l = state.lotes.find(x => x.id === t.dataset.descartar);
     if (!l) return;
     if (t.dataset.confirm !== "1") { t.dataset.confirm = "1"; t.textContent = "Confirmar descarte"; t.classList.add("danger"); return; }
-    state.movs.push({ id: uid(), itemId: l.itemId, tipo: "descarte", qtd: l.qtd, data: isoHoje(), hora: horaAgora(), nota: l.validade ? `validade ${fmtData(l.validade)}` : "" });
+    state.movs.push({ id: uid(), itemId: l.itemId, tipo: "descarte", qtd: l.qtd, baixas: [{ lote: l.id, qtd: l.qtd }], data: isoHoje(), hora: horaAgora(), nota: l.validade ? `validade ${fmtData(l.validade)}` : "" });
     state.lotes = state.lotes.filter(x => x.id !== l.id);
     save(); toast("Lote descartado"); render();
   }
@@ -1263,6 +1277,7 @@ document.addEventListener("click", e => {
   }
   if (t.dataset.mochilaDel) {
     state.familia.mochila = state.familia.mochila.filter(m => m.id !== t.dataset.mochilaDel);
+    state.excluidos.mochila.push(t.dataset.mochilaDel);
     save(); render();
   }
   if (t.id === "bJuntar") {
@@ -1279,12 +1294,15 @@ document.addEventListener("click", e => {
   const [rotaDel, idDel] = location.hash.slice(1).split("/");
   if (t.id === "delYes" && rotaDel === "pessoa") {
     state.familia.pessoas = state.familia.pessoas.filter(p => p.id !== idDel);
+    state.excluidos.pessoas.push(idDel);
     save(); toast("Ficha excluída"); location.hash = "#familia";
   } else if (t.id === "delYes" && rotaDel === "contato") {
     state.familia.contatos = state.familia.contatos.filter(c => c.id !== idDel);
+    state.excluidos.contatos.push(idDel);
     save(); toast("Contato excluído"); location.hash = "#familia";
   } else if (t.id === "delYes") {
     const id = idDel;
+    state.excluidos.items[id] = null;
     state.items = state.items.filter(i => i.id !== id);
     state.lotes = state.lotes.filter(l => l.itemId !== id);
     state.movs = state.movs.filter(m => m.itemId !== id);

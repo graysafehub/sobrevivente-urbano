@@ -71,6 +71,16 @@ No Hub, no quadro "Avisos do tempo · INMET", e na tela Avisos.
 - Em itens de consumo diário, "Usar o consumo medido nas metas" troca a base pelo medido: metas = consumo medido × dias da meta, e a autonomia do Hub usa o mesmo número. "Voltar à base estimada" desfaz.
 - No Hub, "Consumo medido ›" lista os itens medidos e os que ainda estão medindo.
 
+## Dois celulares (fase 5)
+
+Em Sistema › "Dois celulares", sem servidor e sem conta.
+
+- **Primeira vez:** instale o app no outro celular e use lá Backup › Restaurar com um arquivo deste. Assim os dois começam com os mesmos itens.
+- **Para acertar:** "Enviar para o outro celular" abre o menu de compartilhar do Android (WhatsApp, Drive…). No outro, "Juntar arquivo do outro celular". Depois o segundo envia de volta e o primeiro junta também.
+- **Como junta:** entram os lotes, as compras e as saídas que só existem no outro; cada lote é refeito como quantidade inicial menos tudo que saiu dele nos dois celulares, então saídas feitas nos dois não se perdem. Entram também fichas, contatos, lugares, rotas e códigos de barras novos. Nada é apagado, a não ser o que foi excluído de propósito no outro (o app anota as exclusões). Se a mesma meta ou ficha foi mudada nos dois, fica a deste celular.
+- **Desfazer:** o app guarda como estava antes da última junção, e "Desfazer a última junção" volta.
+- O backup também pode ser enviado direto pelo menu de compartilhar ("Enviar backup").
+
 ## Arquivos
 
 | Arquivo | Função |
@@ -83,6 +93,7 @@ No Hub, no quadro "Avisos do tempo · INMET", e na tela Avisos.
 | `zonas.js` | lugares, rotas e radar |
 | `avisos.js` | avisos e previsão do INMET |
 | `consumo.js` | consumo medido pelas saídas |
+| `sync.js` | junção de dois celulares por arquivo |
 | `styles.css` | visual |
 | `sw.js` | guarda o app no celular para abrir offline |
 | `manifest.webmanifest` + `icons/` | permite instalar na tela inicial |
@@ -99,4 +110,4 @@ Depois abra http://localhost:8765.
 
 ## Ao alterar arquivos
 
-Suba a versão em `sw.js` (hoje `su-v14`) para o celular baixar a versão nova.
+Suba a versão em `sw.js` (hoje `su-v15`) para o celular baixar a versão nova.
