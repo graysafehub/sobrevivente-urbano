@@ -132,6 +132,8 @@ function juntarEstado(local, outro) {
     if (aqui) { aqui.ok = aqui.ok || m.ok; aqui.itemId ??= m.itemId && destino(m.itemId); }
     else f.mochila.push({ ...m, itemId: m.itemId && destino(m.itemId) });
   }
+  f.plano ??= planoPadrao();
+  for (const [pid, v] of Object.entries(fo.plano?.pessoas || {})) if (!Object.keys(f.plano.pessoas[pid] || {}).length) f.plano.pessoas[pid] = v;
   f.endereco ||= fo.endereco || "";
   f.encontro.principal ||= fo.encontro?.principal || "";
   f.encontro.secundario ||= fo.encontro?.secundario || "";

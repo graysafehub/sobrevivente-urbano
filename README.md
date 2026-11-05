@@ -81,6 +81,15 @@ Em Sistema › "Dois celulares", sem servidor e sem conta.
 - **Desfazer:** o app guarda como estava antes da última junção, e "Desfazer a última junção" volta.
 - O backup também pode ser enviado direto pelo menu de compartilhar ("Enviar backup").
 
+## Plano de comunicação
+
+Em Família › "Plano de comunicação", para quando a crise pega a família separada.
+
+- **Para todos:** voltar para casa se for seguro; se não der, ponto principal, depois o secundário; quanto tempo esperar em cada ponto; ficar onde está se for perigoso sair; SMS curto com mensagens combinadas (OK, CASA, P1, P2, FICO, AJUDA, editáveis); o contato fora da cidade como ponte; horário fixo para tentar contato; canal do rádio, se houver.
+- **Cada pessoa:** onde costuma estar (lugar das Zonas), a rota de volta e, para criança, quem busca na escola.
+- **Quem usa este celular:** cada aparelho diz de quem é. O Hub e a Família mostram o plano dessa pessoa, e o cartão de bolso sai no nome dela, com o plano no verso. Isso fica só no aparelho: ao restaurar um backup de outro celular, o app pergunta de novo.
+- O plano vai para os outros celulares pela junção e sai na versão impressa.
+
 ## Arquivos
 
 | Arquivo | Função |
@@ -94,6 +103,7 @@ Em Sistema › "Dois celulares", sem servidor e sem conta.
 | `avisos.js` | avisos e previsão do INMET |
 | `consumo.js` | consumo medido pelas saídas |
 | `sync.js` | junção de dois celulares por arquivo |
+| `plano.js` | plano de comunicação e quem usa o celular |
 | `styles.css` | visual |
 | `sw.js` | guarda o app no celular para abrir offline |
 | `manifest.webmanifest` + `icons/` | permite instalar na tela inicial |
@@ -110,4 +120,4 @@ Depois abra http://localhost:8765.
 
 ## Ao alterar arquivos
 
-Suba a versão em `sw.js` (hoje `su-v15`) para o celular baixar a versão nova.
+Suba a versão em `sw.js` (hoje `su-v16`) para o celular baixar a versão nova.

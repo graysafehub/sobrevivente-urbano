@@ -36,6 +36,7 @@ function seedFamilia(items) {
     pessoas: [],
     contatos: [],
     mochila: SEED_MOCHILA.map(m => ({ id: uid(), nome: m.nome, itemId: items.find(i => i.nome === m.estoque)?.id || null, ok: false })),
+    plano: planoPadrao(),
   };
 }
 
@@ -53,6 +54,7 @@ function migrar(s) {
     if (it.spec === undefined) it.spec = base?.spec || "";
   }
   s.familia ??= seedFamilia(s.items);
+  s.familia.plano ??= planoPadrao();
   s.codigos ??= {};
   s.zonas ??= { lugares: [], rotas: [] };
   s.avisos ??= { municipio: null, itens: [], previsao: null, lidoEm: null, erro: "" };
@@ -445,6 +447,7 @@ function viewPainel() {
     </div>
 
     ${cardAvisosHub()}
+    ${cardPlanoHub()}
 
     <div class="card">
       <h2><span class="mod">01</span> · Supply grid · dias de autonomia</h2>
@@ -831,7 +834,7 @@ function impressoFamilia() {
     <p>${f.endereco ? `Casa: ${esc(f.endereco)}<br>` : ""}${f.encontro.principal ? `Principal: ${esc(f.encontro.principal)}<br>` : ""}${f.encontro.secundario ? `Secundário: ${esc(f.encontro.secundario)}` : ""}</p>` : "";
   const mochila = `<h2>Mochila</h2>
     <p>${f.mochila.map(m => `${m.ok ? "[x]" : "[ ]"} ${esc(m.nome)}`).join("<br>")}</p>`;
-  return fichas + contatos + locais + mochila;
+  return fichas + contatos + locais + impressoPlano() + mochila;
 }
 
 function viewImprimir() {
@@ -889,6 +892,7 @@ function viewFamilia() {
   <section class="stack">
     <div class="head"><h1>Família</h1><a class="btn small ghost" href="#cartao">Cartão de bolso</a></div>
     <p class="sub">Fica só neste aparelho e sai na versão para imprimir. Sem números de documento.</p>
+    ${!dono() ? perguntaDonoHtml() : ""}
 
     <div class="card">
       <div class="head"><h2><span class="mod">01</span> · Fichas</h2><a class="btn small" href="#pessoa">Adicionar</a></div>
@@ -935,6 +939,8 @@ function viewFamilia() {
         <button class="btn small ghost" type="submit">Adicionar</button>
       </form>
     </div>
+
+    ${cardPlanoFamilia()}
   </section>`;
 }
 
@@ -985,7 +991,7 @@ function viewContato(id) {
 // cartão para a criança levar: impresso, recortado, duas cópias
 function viewCartao(id) {
   const f = state.familia;
-  const p = pessoa(id) || f.pessoas.find(x => idade(x.nascimento) !== null && idade(x.nascimento) < 18) || f.pessoas[0];
+  const p = pessoa(id) || dono() || f.pessoas.find(x => idade(x.nascimento) !== null && idade(x.nascimento) < 18) || f.pessoas[0];
   const falta = [!f.contatos.length && "contatos", !f.endereco && "endereço", !f.encontro.principal && "ponto de encontro"].filter(Boolean);
   const linha = "______________________";
   const cartao = `<div class="cartao">
@@ -1003,9 +1009,9 @@ function viewCartao(id) {
       <div class="actions"><a class="btn ghost" href="#familia">‹ Voltar</a><button class="btn" id="bPrint" type="button">Imprimir</button></div>
       ${f.pessoas.length ? `<label class="inline">Cartão de<select id="cartaoDe">${f.pessoas.map(x => `<option value="${x.id}" ${x === p ? "selected" : ""}>${esc(x.nome)}</option>`).join("")}</select></label>` : `<p class="sub">Cadastre a ficha da criança em Família para o nome sair no cartão.</p>`}
       ${falta.length ? `<p class="alert amarelo">Falta preencher em Família: ${falta.join(", ")}.</p>` : ""}
-      <p class="sub">Saem duas cópias: uma na mochila da escola, outra no bolso. Recorte e cubra com fita larga.</p>
+      <p class="sub">Saem duas cópias, frente e verso: uma na mochila, outra no bolso. Recorte, cole a frente no verso e cubra com fita larga.</p>
     </div>
-    <div class="cartoes">${cartao}${cartao}</div>
+    <div class="cartoes">${cartao}${versoCartao(p)}${cartao}${versoCartao(p)}</div>
   </section>`;
 }
 
@@ -1082,12 +1088,13 @@ function render() {
     rota: () => viewRota(arg),
     avisos: () => viewAvisos(),
     consumo: () => viewConsumo(),
+    plano: () => viewPlano(),
   };
   $view.innerHTML = (telas[rota] || telas.painel)();
   zonasAoRenderizar(rota);
   avisosAoRenderizar(rota);
   document.body.classList.toggle("printing", ["imprimir", "cartao", "crise"].includes(rota));
-  const ativa = { item: "estoque", editar: "estoque", novo: "estoque", saida: "estoque", imprimir: "mais", crises: "painel", crise: "painel", pessoa: "familia", contato: "familia", cartao: "familia", zonas: "familia", lugar: "familia", rota: "familia", avisos: "painel", consumo: "painel" }[rota] || rota;
+  const ativa = { item: "estoque", editar: "estoque", novo: "estoque", saida: "estoque", imprimir: "mais", crises: "painel", crise: "painel", pessoa: "familia", contato: "familia", cartao: "familia", zonas: "familia", lugar: "familia", rota: "familia", avisos: "painel", consumo: "painel", plano: "familia" }[rota] || rota;
   document.querySelectorAll(".tabbar a").forEach(a => a.classList.toggle("on", a.dataset.route === ativa));
   window.scrollTo(0, 0);
   if (rota === "mais") mostrarPersistencia();
@@ -1456,7 +1463,9 @@ function importar(file) {
     try {
       const s = JSON.parse(r.result);
       if (!Array.isArray(s.items) || !Array.isArray(s.lotes) || !s.config) throw 0;
-      state = migrar(s); save(); toast("Backup restaurado"); location.hash = "#painel"; render();
+      // backup vindo de outro celular: este aparelho pergunta de novo quem o usa
+      state = migrar(s); state.config.dono = null; state.config.perguntarDono = true;
+      save(); toast("Backup restaurado. Diga quem usa este celular."); location.hash = "#familia"; render();
     } catch (e) { toast("Esse arquivo não é um backup do GraySafe Hub."); }
   };
   r.readAsText(file);
