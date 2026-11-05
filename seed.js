@@ -77,6 +77,25 @@ window.SEED_ITEMS = [
 // família base, usada enquanto não houver fichas: 5 pessoas, 2 adultos, 1 bebê
 window.BASE_FAMILIA = { pessoas: 5, adultos: 2, bebes: 1 };
 
+// preço base por unidade do item (R$), de uma pesquisa básica de varejo em nov/2026: média de mercado,
+// farmácia e lojas online, sem cidade definida. Serve para estimar a lista e comparar na hora da compra;
+// o que você paga de verdade passa a valer no lugar dele.
+window.PRECO_BASE_DATA = "nov/2026";
+window.PRECO_BASE = {
+  "Água potável (garrafas)": 1.9, "Hipoclorito de sódio 2,5%": 5, "Balde com tampa": 30, "Pano ou coador para filtrar água": 10,
+  "Arroz": 5, "Feijão": 7, "Macarrão": 9, "Sardinha, atum ou carne em lata": 6, "Leite de caixinha": 5, "Aveia": 14,
+  "Biscoito (maizena / água e sal)": 5, "Fruta em lata ou purê": 10, "Óleo": 8.9, "Sal": 3, "Açúcar": 4.5, "Café": 50,
+  "Absorvedor de oxigênio": 40, "Copos, pratos e talheres descartáveis": 15, "Abridor de lata manual": 15,
+  "Fraldas": 1, "Lenço umedecido": 10, "Fórmula infantil": 85, "Pomada para assadura": 20,
+  "Lanterna LED": 25, "Pilhas": 5, "Power bank": 90, "Carregador e cabo de celular": 40, "Fósforo ou isqueiro": 5,
+  "Rádio a pilha": 60, "Botijão de gás reserva": 115,
+  "Antitérmico infantil": 15, "Analgésico adulto": 12, "Soro de reidratação oral": 3, "Termômetro": 25, "Kit de curativos": 40,
+  "Álcool 70%": 12, "Repelente": 15, "Máscara PFF2": 2, "Lenço umedecido para higiene": 10, "Papel higiênico": 1.6,
+  "Sabonete": 2.5, "Escova de dentes reserva": 5, "Pasta de dente": 6, "Absorventes": 8, "Água sanitária (sem perfume)": 8,
+  "Luvas de borracha (par)": 12, "Botas de borracha (par)": 60, "Sacos de lixo resistentes": 15,
+  "Cópias dos documentos": 10, "Cobertor ou manta": 40, "Lona plástica e fita adesiva": 55, "Alicate ou chave inglesa": 30, "Apito": 5,
+};
+
 window.CATEGORIAS = ["Água", "Comida", "Bebê", "Luz e energia", "Saúde e higiene", "Documentos e dinheiro", "Outros"];
 window.UNIDADES = ["kg", "g", "L", "ml", "un", "pct", "rolo", "R$"];
 window.DEGRAUS = ["3 dias", "1 semana", "2 semanas"];

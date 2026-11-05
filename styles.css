@@ -217,6 +217,7 @@ a.tile { text-decoration: none; color: inherit; }
 .vrow:active { background: #0f150c; }
 
 /* avisos do INMET */
+.badge.preco { text-transform: none; }
 .badge.laranja { color: #ff8c1a; border-color: #ff8c1a; }
 .aviso { --c: var(--warn); border-left: 3px solid var(--c); padding: 6px 0 6px 10px; display: flex; flex-direction: column; gap: 6px; font-size: .88rem; }
 .aviso.laranja { --c: #ff8c1a; } .aviso.vermelho { --c: var(--bad-text); }

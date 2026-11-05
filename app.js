@@ -284,14 +284,35 @@ function qtdTotal(itemId) {
   return lotesDe(itemId).reduce((s, l) => s + l.qtd, 0);
 }
 // ---------- preço ----------
-// cada lote guarda o preço unitário pago; o item tem um preço de referência (o digitado em Editar
-// ou, sem ele, o último pago). Dinheiro vale o próprio valor.
+// cada lote guarda o preço unitário pago; o item tem um preço de referência: o digitado em Editar,
+// ou o último pago, ou o preço base do catálogo (seed.js). Dinheiro vale o próprio valor.
+const precoBase = it => it && it.unidade !== "R$" ? PRECO_BASE[it.base || it.nome] ?? null : null;
+function ultimoPago(it) {
+  return state.lotes.filter(l => l.itemId === it.id && l.precoUn != null).at(-1)?.precoUn
+    ?? state.movs.filter(m => m.itemId === it.id && m.precoUn != null).at(-1)?.precoUn ?? null;
+}
 function precoRef(it) {
   if (!it) return null;
   if (it.unidade === "R$") return 1;
   if (it.precoRef != null) return it.precoRef;
-  return state.lotes.filter(l => l.itemId === it.id && l.precoUn != null).at(-1)?.precoUn
-    ?? state.movs.filter(m => m.itemId === it.id && m.precoUn != null).at(-1)?.precoUn ?? null;
+  return ultimoPago(it) ?? precoBase(it);
+}
+// texto embaixo do preço na Entrada
+function infoPreco(it) {
+  if (!it || it.unidade === "R$") return "";
+  const pb = precoBase(it), up = ultimoPago(it);
+  return [pb != null && `Preço base: ${fmtReais(pb)}/${it.unidade}`, up != null && `último pago: ${fmtReais(up)}/${it.unidade}`].filter(Boolean).join(" · ");
+}
+// compara o preço pago (por unidade) com o base: bom, na média, caro
+function avaliarPreco(it, porUn) {
+  const pb = precoBase(it);
+  if (!(porUn > 0) || pb == null) return "";
+  const r = porUn / pb, dif = Math.round(Math.abs(r - 1) * 100);
+  const [cor, txt] = r <= 0.95 ? ["verde", `${dif}% abaixo do preço base: bom preço`]
+    : r <= 1.1 ? ["verde", "na média do preço base"]
+    : r <= 1.3 ? ["amarelo", `${dif}% acima do preço base`]
+    : ["vermelho", `${dif}% acima do preço base: caro`];
+  return `<span class="badge preco ${cor}">${fmtReais(porUn)}/${esc(it.unidade)}</span> ${txt}`;
 }
 const precoLote = (l, it) => l.precoUn ?? precoRef(it);
 // valor do que está em casa; semPreco = itens com estoque e nenhum preço conhecido
@@ -679,7 +700,8 @@ function viewEntrada(id) {
       <p class="sub" id="eValInfo" ${validadeSugerida(it) ? "" : "hidden"}>Sugerida pela validade típica do item. Confira a data na embalagem.</p>
       <label>Marca <span class="opt">(opcional)</span><input id="eMarca" placeholder="Ex.: Tio João"></label>
       <label>Preço pago, total <span class="opt">(opcional)</span><input id="ePreco" type="number" inputmode="decimal" step="0.01" min="0" placeholder="R$"></label>
-      <p class="sub" id="ePrecoInfo">${it && precoRef(it) != null && it.unidade !== "R$" ? `Último preço: ${fmtReais(precoRef(it))}/${esc(it.unidade)}` : ""}</p>
+      <p class="sub" id="ePrecoInfo">${esc(infoPreco(it))}</p>
+      <p class="sub" id="ePrecoAval" aria-live="polite"></p>
       <label>Onde guardou <span class="opt">(opcional)</span><input id="eLocal" placeholder="Ex.: armário da cozinha"></label>
       <label>Observação <span class="opt">(opcional)</span><input id="eNota" placeholder="Ex.: mercado, promoção"></label>
       <button class="btn" type="submit">Registrar entrada</button>
@@ -733,8 +755,8 @@ function viewEditar(id) {
         </div>
         <p class="sub">Deixe em branco para usar o padrão. O aviso é quantos dias antes do vencimento o item fica amarelo (ex.: 60), não a validade do produto. Com um mínimo, o item fica amarelo abaixo da meta e vermelho abaixo do mínimo.</p>
       </fieldset>
-      ${it.unidade === "R$" ? "" : `<label>Preço de referência por ${esc(it.unidade)} <span class="opt">(opcional)</span><input id="iPreco" type="number" inputmode="decimal" step="0.01" min="0" value="${it.precoRef ?? ""}" placeholder="${id && precoRef(it) != null ? "último pago: " + precoRef(it).toLocaleString("pt-BR") : "R$"}"></label>
-      <p class="sub">Vale para o que está em casa sem preço registrado e para estimar a lista de compras. Em branco, usa o último preço pago.</p>`}
+      ${it.unidade === "R$" ? "" : `<label>Preço de referência por ${esc(it.unidade)} <span class="opt">(opcional)</span><input id="iPreco" type="number" inputmode="decimal" step="0.01" min="0" value="${it.precoRef ?? ""}" placeholder="${id && ultimoPago(it) != null ? "último pago: " + ultimoPago(it).toLocaleString("pt-BR") : precoBase(it) != null ? "preço base: " + precoBase(it).toLocaleString("pt-BR") : "R$"}"></label>
+      <p class="sub">Vale para o que está em casa sem preço registrado e para estimar a lista de compras. Em branco, usa o último preço pago e, sem ele, o preço base do catálogo${precoBase(it) != null ? ` (${fmtReais(precoBase(it))}, pesquisa de ${PRECO_BASE_DATA})` : ""}.</p>`}
       <label>O que anotar em cada compra <span class="opt">(opcional)</span><input id="iSpec" value="${esc(it.spec || "")}" placeholder="Ex.: capacidade (mAh), tamanho, voltagem"></label>
       <label>Dica <span class="opt">(opcional)</span><input id="iDica" value="${esc(it.dica || "")}"></label>
       <button class="btn" type="submit">Salvar</button>
@@ -765,7 +787,7 @@ function viewCompras() {
     if (!falta.length) return "";
     return `<div class="card flush"><h2>${esc(cat)}</h2><ul class="rows">${falta.map(x =>
       `<li><div class="lote">
-        <a class="grow plain" href="#item/${x.i.id}"><span class="nm">${esc(x.i.nome)}</span>${guiaDe(x.i) ? `<span class="sub">ver como escolher ›</span>` : ""}</a>
+        <a class="grow plain" href="#item/${x.i.id}"><span class="nm">${esc(x.i.nome)}</span><span class="sub">${[precoBase(x.i) != null && `base ${fmtReais(precoBase(x.i))}/${esc(x.i.unidade)}`, guiaDe(x.i) && "ver como escolher ›"].filter(Boolean).join(" · ")}</span></a>
         <span class="qty">${fmtQtd(x.f, x.i.unidade)}${x.p != null && x.i.unidade !== "R$" ? `<span class="sub"><br>≈ ${fmtReais(x.f * x.p)}</span>` : ""}</span>
         <a class="btn small" href="#entrada/${x.i.id}" aria-label="Registrar compra de ${esc(x.i.nome)}">+</a>
       </div></li>`).join("")}</ul></div>`;
@@ -776,7 +798,7 @@ function viewCompras() {
     <h1>Lista de compras</h1>
     <p class="sub">O que falta para a meta de ${DEGRAUS[d]}. Toque no item para ver como escolher e guardar; + registra a compra.</p>
     ${tudo.itens.length ? `<div class="card"><div class="head"><h2>Custo estimado</h2><b>${fmtReais(tudo.custo)}</b></div>
-      <p class="sub">Pelo último preço pago ou de referência.${tudo.semPreco ? ` ${tudo.semPreco} ${tudo.semPreco === 1 ? "item ainda não tem" : "itens ainda não têm"} preço e ${tudo.semPreco === 1 ? "fica" : "ficam"} fora da conta.` : ""}</p></div>` : ""}
+      <p class="sub">Pelo último preço pago ou de referência; sem eles, pelo preço base (pesquisa de ${PRECO_BASE_DATA}, varia por cidade e loja).${tudo.semPreco ? ` ${tudo.semPreco} ${tudo.semPreco === 1 ? "item ainda não tem" : "itens ainda não têm"} preço e ${tudo.semPreco === 1 ? "fica" : "ficam"} fora da conta.` : ""}</p></div>` : ""}
     ${grupos || `<div class="card"><b>Meta de ${DEGRAUS[d]} completa.</b>${proximo}</div>`}
   </section>`;
 }
@@ -1130,7 +1152,8 @@ document.addEventListener("change", e => {
     document.getElementById("eVal").value = validadeSugerida(it);
     document.getElementById("eValInfo").hidden = !validadeSugerida(it);
     const pi = document.getElementById("ePrecoInfo");
-    pi.textContent = it && precoRef(it) != null && it.unidade !== "R$" ? `Último preço: ${fmtReais(precoRef(it))}/${it.unidade}` : "";
+    pi.textContent = infoPreco(it);
+    document.getElementById("ePrecoAval").innerHTML = "";
     const w = document.getElementById("eSpecWrap");
     w.innerHTML = `${specLabel(it)}<input id="eSpec" placeholder="${esc(specPlaceholder(it))}">`;
     w.querySelector("input").value = it ? ultimaSpec(it.id) : "";
@@ -1437,6 +1460,16 @@ function aplicarCodigo(cod) {
   toast(`Reconhecido: ${it.nome}`);
   document.getElementById("eQtd").focus();
 }
+
+// Entrada: avalia o preço enquanto digita
+document.addEventListener("input", e => {
+  if (!["ePreco", "eQtd"].includes(e.target.id)) return;
+  const aval = document.getElementById("ePrecoAval");
+  const it = item(document.getElementById("eItem")?.value);
+  if (!aval || !it) return;
+  const pago = num("ePreco"), qtd = num("eQtd");
+  aval.innerHTML = pago > 0 && qtd > 0 ? avaliarPreco(it, pago / qtd) : "";
+});
 
 document.addEventListener("input", e => {
   if (e.target.id !== "vBusca") return;

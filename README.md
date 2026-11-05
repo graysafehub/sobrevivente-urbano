@@ -95,6 +95,10 @@ Em Família › "Plano de comunicação", para quando a crise pega a família se
 - **Absorvedor de oxigênio** entrou no catálogo, com guia pela ficha da Utah State University (2011): quantidade por tamanho de recipiente (1 L, 50 a 100 cc; 2 L, 200 cc; 5 L, 500 cc), só para alimento seco (menos de 10% de umidade, risco de botulismo), só em recipiente que barra o ar (PET, vidro, lata, saco aluminizado), usar em 15 minutos depois de abrir o pacote e guardar os que sobram em pote fechado. Os guias de arroz, feijão, macarrão e aveia apontam para ele.
 - **Lenço umedecido para higiene:** item novo, por pessoa (1 pacote a cada 2 semanas, estimativa). O lenço do bebê continua à parte.
 
+## Preço base
+
+Cada item do catálogo tem um preço base (seed.js, `PRECO_BASE`), de uma pesquisa básica de varejo de nov/2026, sem cidade definida. Ele entra quando o item não tem preço digitado nem preço pago: a lista de compras e o Hub já estimam o custo desde o começo. Na Entrada, ao digitar o preço pago, o app compara com o base: bom preço (abaixo), na média (até 10% acima), acima (até 30%) ou caro. O preço pago de verdade passa a valer no lugar do base.
+
 ## Arquivos
 
 | Arquivo | Função |
@@ -125,4 +129,4 @@ Depois abra http://localhost:8765.
 
 ## Ao alterar arquivos
 
-Suba a versão em `sw.js` (hoje `su-v17`) para o celular baixar a versão nova.
+Suba a versão em `sw.js` (hoje `su-v18`) para o celular baixar a versão nova.
