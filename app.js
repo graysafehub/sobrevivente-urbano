@@ -195,9 +195,11 @@ function multiplicador(it) {
   const tipo = (it.escala || "casa").replace("-dia", "");
   return { pessoa: nPessoas(), adulto: nAdultos(), bebe: nBebes() }[tipo] ?? 1;
 }
-// quanto a casa consome por dia (só itens de consumo diário)
+// quanto a casa consome por dia (só itens de consumo diário): a base × família,
+// ou o consumo medido pelas saídas quando o usuário escolheu usá-lo (consumo.js)
 function consumoDia(it) {
-  return porDia(it) ? (it.qtd || 0) * multiplicador(it) : null;
+  if (!porDia(it)) return null;
+  return usaMedido(it) ? consumoMedido(it).porDia : (it.qtd || 0) * multiplicador(it);
 }
 // arredonda para cima: unidades inteiras (sobra de até 0,1 não arredonda), dinheiro de 10 em 10,
 // peso e volume de 0,1 em 0,1
@@ -209,12 +211,14 @@ function arredMeta(v, un) {
 }
 function metaDe(it, d) {
   if (!it.escala || it.escala === "casa") return arredMeta(it.metas?.[d] || 0, it.unidade);
+  if (usaMedido(it)) return arredMeta(consumoMedido(it).porDia * DIAS[d], it.unidade);
   const v = (it.qtd || 0) * multiplicador(it) * (porDia(it) ? DIAS[d] : 1);
   return arredMeta(v, it.unidade);
 }
 // texto da base: "0,08 kg por pessoa, por dia"
 function textoBase(it) {
   if (!it.escala || it.escala === "casa") return "meta fixa por casa";
+  if (usaMedido(it)) return `consumo medido, ${fmtQtd(Math.round(consumoMedido(it).porDia * 1000) / 1000, it.unidade)} por dia`;
   const q = Math.round((it.qtd || 0) * 1000) / 1000;
   return `${fmtQtd(q, it.unidade)} ${ESCALAS[it.escala]}`;
 }
@@ -450,7 +454,7 @@ function viewPainel() {
           <span class="scale"><span style="left:0">0</span><span style="left:${3 / 14 * 100}%">3</span><span style="left:50%">7</span><span style="right:0">14</span></span>
         </div>
       </div>
-      <p class="sub">${nPessoas()} pessoas. Água, comida e higiene pelo consumo diário de cada item; demais itens pela meta de 2 semanas.</p>
+      <p class="sub">${nPessoas()} pessoas. Água, comida e higiene pelo consumo diário de cada item${state.items.some(usaMedido) ? ` (${state.items.filter(usaMedido).length} pelo consumo medido)` : ""}; demais itens pela meta de 2 semanas. <a href="#consumo">Consumo medido ›</a></p>
     </div>
 
     <div class="grid3">
@@ -567,6 +571,8 @@ function viewItem(id) {
     <div class="grid3">
       ${DEGRAUS.map((d, i) => `<div class="tile ${i === state.config.degrau ? "atual" : ""}"><span class="lbl">Meta ${d}</span><b class="sm">${metaDe(it, i) ? fmtQtd(metaDe(it, i), it.unidade) : "—"}</b></div>`).join("")}
     </div>
+
+    ${consumoItemHtml(it)}
 
     <div class="card">
       <div class="head"><h2>Em casa: ${fmtQtd(qtdTotal(id), it.unidade)}</h2>${valorItem(it)}</div>
@@ -1062,12 +1068,13 @@ function render() {
     lugar: () => viewLugar(arg),
     rota: () => viewRota(arg),
     avisos: () => viewAvisos(),
+    consumo: () => viewConsumo(),
   };
   $view.innerHTML = (telas[rota] || telas.painel)();
   zonasAoRenderizar(rota);
   avisosAoRenderizar(rota);
   document.body.classList.toggle("printing", ["imprimir", "cartao", "crise"].includes(rota));
-  const ativa = { item: "estoque", editar: "estoque", novo: "estoque", saida: "estoque", imprimir: "mais", crises: "painel", crise: "painel", pessoa: "familia", contato: "familia", cartao: "familia", zonas: "familia", lugar: "familia", rota: "familia", avisos: "painel" }[rota] || rota;
+  const ativa = { item: "estoque", editar: "estoque", novo: "estoque", saida: "estoque", imprimir: "mais", crises: "painel", crise: "painel", pessoa: "familia", contato: "familia", cartao: "familia", zonas: "familia", lugar: "familia", rota: "familia", avisos: "painel", consumo: "painel" }[rota] || rota;
   document.querySelectorAll(".tabbar a").forEach(a => a.classList.toggle("on", a.dataset.route === ativa));
   window.scrollTo(0, 0);
   if (rota === "mais") mostrarPersistencia();

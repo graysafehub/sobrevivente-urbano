@@ -64,6 +64,13 @@ No Hub, no quadro "Avisos do tempo · INMET", e na tela Avisos.
 - Lê sozinho ao abrir o Hub, no máximo a cada 30 minutos, quando há internet. A última leitura fica guardada para consultar offline, com a hora; depois de 12 horas sem leitura, o app avisa.
 - **Defesa Civil:** o sistema de alertas (Idap) não libera a leitura por outros sites, então o app orienta o SMS 40199 e os alertas de emergência do Android.
 
+## Consumo medido (fase 5)
+
+- O app mede quanto a casa gasta de cada item pelas saídas de **consumo** (doação, perda e descarte não contam), nos últimos 90 dias a partir do primeiro registro do item. Vale com pelo menos 14 dias de registro e 2 saídas.
+- Na tela do item, "Consumo medido" mostra a média por dia, a comparação com a base estimada e quanto dura o que há em casa nesse ritmo. Antes de ter dados suficientes, mostra quanto falta.
+- Em itens de consumo diário, "Usar o consumo medido nas metas" troca a base pelo medido: metas = consumo medido × dias da meta, e a autonomia do Hub usa o mesmo número. "Voltar à base estimada" desfaz.
+- No Hub, "Consumo medido ›" lista os itens medidos e os que ainda estão medindo.
+
 ## Arquivos
 
 | Arquivo | Função |
@@ -75,6 +82,7 @@ No Hub, no quadro "Avisos do tempo · INMET", e na tela Avisos.
 | `crises.js` | guias de crise |
 | `zonas.js` | lugares, rotas e radar |
 | `avisos.js` | avisos e previsão do INMET |
+| `consumo.js` | consumo medido pelas saídas |
 | `styles.css` | visual |
 | `sw.js` | guarda o app no celular para abrir offline |
 | `manifest.webmanifest` + `icons/` | permite instalar na tela inicial |
@@ -91,4 +99,4 @@ Depois abra http://localhost:8765.
 
 ## Ao alterar arquivos
 
-Suba a versão em `sw.js` (hoje `su-v13`) para o celular baixar a versão nova.
+Suba a versão em `sw.js` (hoje `su-v14`) para o celular baixar a versão nova.
