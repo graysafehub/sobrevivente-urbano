@@ -45,6 +45,15 @@ Dados antigos e backups antigos são convertidos sozinhos ao abrir.
 
 No Hub, em "Guias de crise": tratar e guardar água, falta de luz, enchente e temporal, criança com febre ou diarreia. Cada guia tem passos curtos, o que não fazer, sinais para procurar atendimento, quanto há em casa dos itens que ele usa e as fontes (Ministério da Saúde, Defesa Civil Nacional, Secretaria da Saúde de SP e de PE, Ready.gov). O guia da criança mostra as fichas de menores de 12 anos com alergias e remédios. Em Sistema, "Imprimir os guias de crise" gera a versão em papel.
 
+## Zonas (fase 3)
+
+Em Família › "Zonas", ou no Hub.
+
+- **Lugares:** casa, pontos de encontro, casa de parente, abrigo, hospital, UPA, UBS, farmácia, posto, mercado, revenda de gás, ponto de água, escola e trabalho. A posição entra pelo GPS ("Usar minha posição agora", em pé no lugar; funciona sem internet) ou colando o link longo ou os números copiados do Google Maps.
+- **Radar:** desenho dos lugares em volta de casa, norte para cima, com distância e direção (N, NE, L…). Cada grupo tem forma e cor. "Mostrar minha posição" põe você no radar e mostra a distância e o tempo a pé até cada lugar, em linha reta. O GPS só fica ligado com a tela aberta, e a posição não sai do aparelho.
+- **Rotas:** de um lugar a outro, a pé ou de carro, com caminho principal, alternativo e pontos de atenção, e o botão para abrir no Google Maps (precisa de internet ou da área baixada no Maps).
+- **Papel:** a versão para imprimir traz o radar, a tabela dos lugares com coordenadas e as rotas.
+
 ## Arquivos
 
 | Arquivo | Função |
@@ -54,6 +63,7 @@ No Hub, em "Guias de crise": tratar e guardar água, falta de luz, enchente e te
 | `seed.js` | catálogo inicial, metas, regra de cada meta e mochila padrão |
 | `guias.js` | guia de compra de cada item e lista de fontes |
 | `crises.js` | guias de crise |
+| `zonas.js` | lugares, rotas e radar |
 | `styles.css` | visual |
 | `sw.js` | guarda o app no celular para abrir offline |
 | `manifest.webmanifest` + `icons/` | permite instalar na tela inicial |
@@ -70,4 +80,4 @@ Depois abra http://localhost:8765.
 
 ## Ao alterar arquivos
 
-Suba a versão em `sw.js` (hoje `su-v11`) para o celular baixar a versão nova.
+Suba a versão em `sw.js` (hoje `su-v12`) para o celular baixar a versão nova.

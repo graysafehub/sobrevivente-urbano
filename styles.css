@@ -216,6 +216,36 @@ a.tile { text-decoration: none; color: inherit; }
 .vrow { display: flex; flex-direction: column; align-items: flex-start; width: 100%; padding: 10px 12px; min-height: 48px; background: none; border: 0; color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
 .vrow:active { background: #0f150c; }
 
+/* zonas: grupos de lugar têm forma e cor próprias */
+:root { --g-casa: var(--accent); --g-encontro: var(--warn); --g-saude: var(--bad-text); --g-abastecimento: #5ec8f2; --g-rotina: #d5dccb; --g-outro: var(--muted); }
+.g-casa { --g: var(--g-casa); } .g-encontro { --g: var(--g-encontro); } .g-saude { --g: var(--g-saude); }
+.g-abastecimento { --g: var(--g-abastecimento); } .g-rotina { --g: var(--g-rotina); } .g-outro { --g: var(--g-outro); }
+svg.radar { display: block; width: 100%; max-width: 420px; margin: 0 auto; font-family: var(--mono); }
+.radar .fundo { fill: #050805; stroke: var(--accent-dim); }
+.radar .anel { fill: none; stroke: var(--line); }
+.radar .eixo { stroke: var(--line); stroke-dasharray: 2 4; }
+.radar .escala { fill: var(--muted); font-size: 8px; }
+.radar .norte { fill: var(--accent); font-size: 11px; font-weight: 700; text-anchor: middle; }
+.radar .ponto { fill: var(--muted); font-size: 9px; text-anchor: middle; }
+.radar .m { fill: var(--g); stroke: #000; stroke-width: 1; }
+.radar .m-casa { fill: var(--g-casa); stroke: #000; }
+.radar .rot { fill: var(--g, var(--fg)); font-size: 10px; font-weight: 700; paint-order: stroke; stroke: #000; stroke-width: 3px; }
+.radar .rot.voce { fill: #fff; }
+.radar .m-voce { fill: #fff; stroke: #000; }
+.radar .m-voce-aura { fill: none; stroke: #fff; opacity: .5; }
+.radar .varredura path { fill: var(--accent); opacity: .08; }
+.radar .varredura { transform-origin: 160px 160px; animation: varrer 6s linear infinite; }
+@keyframes varrer { to { transform: rotate(360deg); } }
+ul.legenda-formas { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: .72rem; color: var(--muted); }
+ul.legenda-formas li { display: flex; align-items: center; gap: 5px; }
+ul.legenda-formas .m { fill: var(--g); }
+.num { flex: none; width: 26px; height: 26px; display: grid; place-items: center; border: 1px solid var(--g, var(--line)); color: var(--g, var(--fg)); font-size: .75rem; font-weight: 700; }
+.sub.voce { display: block; color: var(--fg); }
+.alerta-txt { color: var(--warn); }
+#fLugar fieldset { display: flex; flex-direction: column; gap: 10px; }
+textarea { font: inherit; font-size: .95rem; color: var(--fg); background: #000; border: 1px solid var(--line); border-radius: 0; padding: 10px 12px; width: 100%; resize: vertical; }
+textarea:focus { border-color: var(--accent-dim); }
+
 /* guias de crise */
 .crise .card.alerta { --c: var(--warn); border-color: #5a4500; }
 .crise .card.alerta h2 { color: var(--warn); }
@@ -249,6 +279,11 @@ hr.quebra { border: 0; border-top: 1px dashed var(--line); margin: 18px 0; }
   .crise .dot { border: 1px solid #000; }
   .crise .fontes a::after { content: " (" attr(href) ")"; font-size: .7em; }
   hr.quebra { break-after: page; border: 0; }
+  .radar-print svg.radar { max-width: 340px; }
+  .radar .fundo { fill: #fff; stroke: #000; }
+  .radar .anel, .radar .eixo { stroke: #888; }
+  .radar .escala, .radar .ponto, .radar .norte, .radar .rot { fill: #000; stroke: #fff; }
+  .radar .m, .radar .m-casa { fill: #fff; stroke: #000; stroke-width: 1.5; }
 }
 
 @media (max-width: 380px) {
@@ -257,4 +292,4 @@ hr.quebra { border: 0; border-top: 1px dashed var(--line); margin: 18px 0; }
   .row3 { grid-template-columns: 1fr; }
   .sup { grid-template-columns: 6.5em 2.8em 1fr; }
 }
-@media (prefers-reduced-motion: reduce) { .log li:first-child .ev::after { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .log li:first-child .ev::after { animation: none; } .radar .varredura { animation: none; } }

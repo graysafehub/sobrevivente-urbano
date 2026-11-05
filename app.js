@@ -20,6 +20,7 @@ function seedState() {
     lotes: [],
     movs: [],
     codigos: {},
+    zonas: { lugares: [], rotas: [] },
     config: { degrau: 0, pessoas: 5, avisoDias: 60, ultimoBackup: null },
   };
   s.familia = seedFamilia(s.items);
@@ -45,6 +46,7 @@ function migrar(s) {
   }
   s.familia ??= seedFamilia(s.items);
   s.codigos ??= {};
+  s.zonas ??= { lugares: [], rotas: [] };
   if ((s.versao || 1) < 4) migrarBasePorPessoa(s);
   s.versao = 4;
   for (const it of s.items) {
@@ -483,13 +485,15 @@ function viewPainel() {
       }).join("")}</ul>
     </div>` : ""}
 
+    ${cardZonasHub()}
+
     <div class="card flush">
-      <h2><span class="mod">03</span> · Guias de crise</h2>
+      <h2><span class="mod">04</span> · Guias de crise</h2>
       <ul class="rows">${CRISES.map(c => `<li><a href="#crise/${c.id}"><span class="grow nm">${esc(c.titulo)}</span><span aria-hidden="true">›</span></a></li>`).join("")}</ul>
     </div>
 
     <div class="card">
-      <h2><span class="mod">04</span> · Registro</h2>
+      <h2><span class="mod">05</span> · Registro</h2>
       ${log.length ? `<ul class="log">${log.map(m => {
         const it = item(m.itemId);
         const [rot, cls, s] = sinal[m.tipo] || [m.tipo.toUpperCase(), "neg", "−"];
@@ -830,6 +834,7 @@ function viewImprimir() {
     </table>
     <p>Valor do estoque: <b>${fmtReais(valorEstoque().total)}</b>${valorEstoque().semPreco ? ` (${valorEstoque().semPreco} itens sem preço)` : ""}</p>
     ${impressoFamilia()}
+    ${impressoZonas()}
     <h2>Telefones</h2>
     <p>Defesa Civil 199 · SAMU 192 · Bombeiros 193 · Alerta da Defesa Civil: SMS com o CEP para 40199</p>
     <h2>Água</h2>
@@ -888,6 +893,8 @@ function viewFamilia() {
       <label>Ponto de encontro principal <span class="opt">(perto de casa)</span><input id="fEnc1" value="${esc(f.encontro.principal)}" placeholder="Ex.: portão da escola"></label>
       <label>Ponto de encontro secundário <span class="opt">(fora do bairro)</span><input id="fEnc2" value="${esc(f.encontro.secundario)}" placeholder="Ex.: casa da avó"></label>
       <button class="btn ghost" type="submit">Salvar</button>
+      <a class="btn" href="#zonas">Zonas: lugares, rotas e radar ›</a>
+      <p class="sub">${state.zonas.lugares.length ? `${state.zonas.lugares.length} ${state.zonas.lugares.length === 1 ? "lugar cadastrado" : "lugares cadastrados"}, ${state.zonas.rotas.length} ${state.zonas.rotas.length === 1 ? "rota" : "rotas"}.` : "Grave a posição de casa, dos pontos de encontro, do hospital e da escola para ver o radar."}</p>
     </form>
 
     <div class="card">
@@ -1047,10 +1054,14 @@ function render() {
     pessoa: () => viewPessoa(arg),
     contato: () => viewContato(arg),
     cartao: () => viewCartao(arg),
+    zonas: () => viewZonas(),
+    lugar: () => viewLugar(arg),
+    rota: () => viewRota(arg),
   };
   $view.innerHTML = (telas[rota] || telas.painel)();
+  zonasAoRenderizar(rota);
   document.body.classList.toggle("printing", ["imprimir", "cartao", "crise"].includes(rota));
-  const ativa = { item: "estoque", editar: "estoque", novo: "estoque", saida: "estoque", imprimir: "mais", crises: "painel", crise: "painel", pessoa: "familia", contato: "familia", cartao: "familia" }[rota] || rota;
+  const ativa = { item: "estoque", editar: "estoque", novo: "estoque", saida: "estoque", imprimir: "mais", crises: "painel", crise: "painel", pessoa: "familia", contato: "familia", cartao: "familia", zonas: "familia", lugar: "familia", rota: "familia" }[rota] || rota;
   document.querySelectorAll(".tabbar a").forEach(a => a.classList.toggle("on", a.dataset.route === ativa));
   window.scrollTo(0, 0);
   if (rota === "mais") mostrarPersistencia();
