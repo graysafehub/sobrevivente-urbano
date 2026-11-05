@@ -90,6 +90,11 @@ Em Família › "Plano de comunicação", para quando a crise pega a família se
 - **Quem usa este celular:** cada aparelho diz de quem é. O Hub e a Família mostram o plano dessa pessoa, e o cartão de bolso sai no nome dela, com o plano no verso. Isso fica só no aparelho: ao restaurar um backup de outro celular, o app pergunta de novo.
 - O plano vai para os outros celulares pela junção e sai na versão impressa.
 
+## Absorvedor de oxigênio e lenço para todos
+
+- **Absorvedor de oxigênio** entrou no catálogo, com guia pela ficha da Utah State University (2011): quantidade por tamanho de recipiente (1 L, 50 a 100 cc; 2 L, 200 cc; 5 L, 500 cc), só para alimento seco (menos de 10% de umidade, risco de botulismo), só em recipiente que barra o ar (PET, vidro, lata, saco aluminizado), usar em 15 minutos depois de abrir o pacote e guardar os que sobram em pote fechado. Os guias de arroz, feijão, macarrão e aveia apontam para ele.
+- **Lenço umedecido para higiene:** item novo, por pessoa (1 pacote a cada 2 semanas, estimativa). O lenço do bebê continua à parte.
+
 ## Arquivos
 
 | Arquivo | Função |
@@ -120,4 +125,4 @@ Depois abra http://localhost:8765.
 
 ## Ao alterar arquivos
 
-Suba a versão em `sw.js` (hoje `su-v16`) para o celular baixar a versão nova.
+Suba a versão em `sw.js` (hoje `su-v17`) para o celular baixar a versão nova.

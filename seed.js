@@ -24,6 +24,7 @@ window.SEED_ITEMS = [
   { nome: "Sal", categoria: "Comida", unidade: "kg", escala: "pessoa-dia", qtd: 0.01, validade: true },
   { nome: "Açúcar", categoria: "Comida", unidade: "kg", escala: "pessoa-dia", qtd: 0.04, validade: true },
   { nome: "Café", categoria: "Comida", unidade: "kg", escala: "adulto-dia", qtd: 0.01, validade: true },
+  { nome: "Absorvedor de oxigênio", categoria: "Comida", unidade: "pct", escala: "casa", metas: [0, 1, 1], spec: "capacidade (cc) e unidades no pacote", validade: true, vidaMeses: 6, dica: "Só para quem passa arroz, feijão ou macarrão para garrafa PET." },
   { nome: "Copos, pratos e talheres descartáveis", categoria: "Comida", unidade: "pct", escala: "casa", metas: [1, 1, 2], validade: false },
   { nome: "Abridor de lata manual", categoria: "Comida", unidade: "un", escala: "casa", metas: [2, 2, 2], validade: false },
 
@@ -51,6 +52,7 @@ window.SEED_ITEMS = [
   { nome: "Álcool 70%", categoria: "Saúde e higiene", unidade: "un", escala: "casa", metas: [1, 1, 1], validade: true },
   { nome: "Repelente", categoria: "Saúde e higiene", unidade: "un", escala: "casa", metas: [1, 1, 2], validade: true },
   { nome: "Máscara PFF2", categoria: "Saúde e higiene", unidade: "un", escala: "pessoa", qtd: 2, validade: true },
+  { nome: "Lenço umedecido para higiene", categoria: "Saúde e higiene", unidade: "pct", escala: "pessoa-dia", qtd: 1 / 14, validade: true, vidaMeses: 12 },
   { nome: "Papel higiênico", categoria: "Saúde e higiene", unidade: "rolo", escala: "pessoa-dia", qtd: 1 / 3, validade: false },
   { nome: "Sabonete", categoria: "Saúde e higiene", unidade: "un", escala: "pessoa-dia", qtd: 1 / 14, validade: false },
   { nome: "Escova de dentes reserva", categoria: "Saúde e higiene", unidade: "un", escala: "pessoa", qtd: 1, validade: false },

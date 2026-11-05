@@ -8,6 +8,9 @@ window.FONTES = {
   readyComida: { nome: "Ready.gov (FEMA, EUA) · Food", url: "https://www.ready.gov/food" },
   cveSP: { nome: "CVE · Secretaria da Saúde de SP · Hipoclorito de sódio 2,5%", url: "https://www.saude.sp.gov.br/resources/cve-centro-de-vigilancia-epidemiologica/areas-de-vigilancia/doencas-transmitidas-por-agua-e-alimentos/folder/folder_hipoclorito_de_sodio.pdf" },
   byu: { nome: "BYU (Universidade Brigham Young) · An approach to longer-term food storage, 2024", url: "https://ndfs.byu.edu/https:/brightspotcdn.byu.edu/66/a8/0a18984741f6a699f6034adbbb30/an-approach-to-longer-term-food-storage-6june2024.pdf" },
+  usuAbsorvedor: { nome: "Utah State University Extension · Oxygen Absorbers (C. Washburn, 2011)", url: "https://digitalcommons.usu.edu/context/extension_curall/article/1196/viewcontent/Oxygen_Absorbers.pdf" },
+  usuEmbalagem: { nome: "Utah State University Extension · Packaging Foods (garrafas PET)", url: "https://extension.usu.edu/preserve-the-harvest/food-storage-packaging" },
+  usuFeijao: { nome: "Utah State University Extension · Storing Dry Beans", url: "https://extension.usu.edu/preserve-the-harvest/dev/storing-dry-beans-1" },
   usuArroz: { nome: "Utah State University Extension · Storing white rice", url: "https://extension.usu.edu/preserve-the-harvest/research/storing-white-rice.php" },
   ksuPragas: { nome: "Kansas State University · Controlling stored food insects (MF2270)", url: "https://bookstore.ksre.ksu.edu/download/controlling-stored-food-insects-home-and-horticultural-pests_MF2270" },
   uafPragas: { nome: "University of Alaska Fairbanks · Pantry pests", url: "https://www.uaf.edu/ces/publications/database/insects-pests/pantry-pests.php" },
@@ -24,6 +27,20 @@ window.FONTES = {
 };
 
 window.GUIAS = {
+  "Absorvedor de oxigênio": {
+    escolher: "Sachê próprio para alimento (pó de ferro e sal), vendido para estoque de alimentos. A embalagem diz a capacidade em cc, que é quanto oxigênio ele absorve. Ele tira o oxigênio da garrafa: o caruncho não sobrevive e o alimento oxida menos. Só funciona em recipiente que barra o ar: garrafa PET de refrigerante ou de suco, vidro com tampa de rosca, lata ou saco aluminizado. Balde plástico deixa o ar entrar aos poucos: só com saco aluminizado dentro.",
+    quanto: "A USU indica: pote de 1 litro (quarto de galão), 50 cc; galão de 3,8 L, 300 cc; recipiente de 19 L, três de 500 cc. Na mesma proporção, para as garrafas daqui: 1 L, um de 50 a 100 cc; 2 L, um de 200 cc; 5 L, um de 500 cc. Arredonde para cima: absorvedor a mais só custa mais, e a menos deixa oxigênio. Grão grande, como feijão, deixa mais ar entre os grãos e fica melhor com a medida de cima.",
+    armazenar: "Pacote fechado dura de 6 meses a 1 ano. Aberto, o sachê começa a agir em contato com o ar: use em até 15 minutos. Os que sobrarem vão na hora para um pote de vidro ou garrafa PET bem fechados, e duram até 6 meses. Sachê bom tem pó solto, cinza ou rosado; gasto fica marrom e empedrado: descarte.",
+    preparar: "Só para alimento seco, com menos de 10% de umidade (arroz, macarrão, aveia, feijão, leite em pó): alimento úmido em embalagem sem oxigênio pode causar botulismo. Use garrafa PET que já foi de alimento ou bebida, seca por dentro, com tampa de rosca de vedação plástica; teste a tampa apertando a garrafa vazia e fechada dentro d'água: não pode sair bolha. Encha a garrafa até perto da boca, ponha o sachê por cima, feche bem e escreva a data. Nos dias seguintes a garrafa pode ficar um pouco murcha: é o oxigênio sendo absorvido. Não coma o sachê; descarte ao abrir.",
+    fontes: ["usuAbsorvedor", "usuEmbalagem"],
+  },
+  "Lenço umedecido para higiene": {
+    escolher: "Lenço umedecido sem perfume e sem álcool, pacote grande com tampa plástica. Sem água encanada, é o que limpa mãos, rosto e corpo de todos, não só do bebê. Para as mãos antes de comer, junte o álcool 70%.",
+    quanto: "Base: 1 pacote por pessoa a cada 2 semanas, cerca de 3 a 4 lenços por dia num pacote de 50. Estimativa. O do bebê é contado à parte, no item Lenço umedecido.",
+    armazenar: "Tem validade: o líquido evapora e o conservante perde efeito. Fechado e longe do sol. Depois de aberto, resseca em semanas: abra um de cada vez.",
+    preparar: "",
+    fontes: [],
+  },
   "Copos, pratos e talheres descartáveis": {
     escolher: "Copos, pratos e talheres descartáveis, ou de plástico duro reutilizável. Sem água encanada, lavar louça gasta a reserva de beber; o Ready.gov põe pratos, copos e talheres de papel ou plástico no kit.",
     quanto: "Por casa: 1 pacote para 3 dias e 1 semana, 2 para 2 semanas.",
@@ -175,22 +192,22 @@ window.GUIAS = {
     escolher: "Arroz branco polido tipo 1, sem grãos quebrados ou manchados. Evite o integral para reserva: a casca guarda óleo, que rança em meses.",
     quanto: "Base: 80 g de arroz cru por pessoa por dia. A BYU calcula cerca de 30 kg por adulto por ano (81 g por dia). Cozinhar gasta água, cerca de 2 partes de água para 1 de arroz: a base de água já tem folga para isso.",
     armazenar: "Pacote fechado do mercado: use dentro da validade, em lugar fresco e seco. Em pote vedado ou garrafa PET bem seca, longe do calor, o arroz branco dura anos: a USU registra até 10 anos a 21 °C com absorvedor de oxigênio, e a BYU estima mais de 30 anos em embalagem sem ar. Depois de aberto, use em 1 a 2 anos. Calor, umidade e ar são o que estragam: não guarde perto do fogão ou em parede que pega sol.",
-    preparar: "Para matar ovos de caruncho que já vêm da lavoura e do armazém (não aparecem a olho nu): ponha o pacote fechado no freezer a −18 °C por 3 dias; pacotes de 5 kg pedem até 7 dias para o frio chegar ao centro. Depois, deixe voltar à temperatura ambiente ainda fechado (evita água condensada nos grãos) e passe para um pote ou garrafa PET seca, com tampa que veda. Escreva no pote a data e a validade. Folha de louro: muita gente usa para afastar insetos, mas não há estudo que comprove; não substitui o freezer nem o pote vedado.",
-    fontes: ["usuArroz", "byu", "ksuPragas", "uafPragas"],
+    preparar: "Para matar ovos de caruncho que já vêm da lavoura e do armazém (não aparecem a olho nu): ponha o pacote fechado no freezer a −18 °C por 3 dias; pacotes de 5 kg pedem até 7 dias para o frio chegar ao centro. Depois, deixe voltar à temperatura ambiente ainda fechado (evita água condensada nos grãos) e passe para um pote ou garrafa PET seca, com tampa que veda. Escreva no pote a data e a validade. Folha de louro: muita gente usa para afastar insetos, mas não há estudo que comprove; não substitui o freezer nem o pote vedado. Para guardar por anos em garrafa PET, ponha um absorvedor de oxigênio antes de fechar: 200 cc numa garrafa de 2 L (veja o guia do Absorvedor de oxigênio).",
+    fontes: ["usuArroz", "byu", "ksuPragas", "uafPragas", "usuAbsorvedor"],
   },
   "Feijão": {
     escolher: "Grãos inteiros, de cor uniforme, sem furinhos (sinal de caruncho) e da safra mais recente que encontrar. Feijão carioca escurece e endurece com o tempo; preto e fradinho escurecem menos.",
     quanto: "Base: 60 g de feijão cru por pessoa por dia. A BYU calcula 28 kg de leguminosas por adulto por ano (77 g por dia); a base é menor porque arroz e macarrão completam. Feijão pronto em lata ou sachê conta também e não gasta gás nem água.",
     armazenar: "Pote vedado, lugar fresco e seco. Em calor e umidade, típicos do Brasil, o feijão desenvolve o defeito de \"difícil cozimento\": a Embrapa mediu o tempo de cozimento subindo em todas as cultivares após 180 dias. Por isso, para reserva, troque o feijão a cada 6 meses a 1 ano, mesmo que ainda esteja na validade. Em embalagem sem ar e fresca, a BYU estima até 25 anos, mas ele fica cada vez mais demorado de cozinhar.",
-    preparar: "Como no arroz: pacote fechado no freezer a −18 °C por 3 a 7 dias para matar ovos de caruncho, volta à temperatura ambiente ainda fechado e vai para pote seco com tampa que veda. Escreva a data da compra. Dica da BYU para feijão velho: 1/8 de colher de chá de bicarbonato por xícara de feijão ajuda a amolecer no cozimento.",
-    fontes: ["embrapaFeijao", "byu", "ksuPragas"],
+    preparar: "Como no arroz: pacote fechado no freezer a −18 °C por 3 a 7 dias para matar ovos de caruncho, volta à temperatura ambiente ainda fechado e vai para pote seco com tampa que veda. Escreva a data da compra. Dica da BYU para feijão velho: 1/8 de colher de chá de bicarbonato por xícara de feijão ajuda a amolecer no cozimento. Para guardar em garrafa PET, a USU recomenda tirar o oxigênio com absorvedor (feijão deixa mais ar entre os grãos: 200 a 300 cc numa garrafa de 2 L). Isso evita caruncho e sabor ruim, mas não impede o feijão de ficar duro com o calor: continue trocando.",
+    fontes: ["embrapaFeijao", "byu", "ksuPragas", "usuFeijao", "usuAbsorvedor"],
   },
   "Macarrão": {
     escolher: "Macarrão seco comum ou de sêmola, sem ovos (o com ovos tem gordura e dura menos). Formatos pequenos e finos cozinham mais rápido e gastam menos gás.",
     quanto: "Base: 50 g por pessoa por dia. A BYU calcula 26 g de macarrão mais 160 g de trigo por adulto por dia; aqui não se estoca trigo, então macarrão e biscoito ocupam parte desse lugar.",
     armazenar: "Pacote fechado em lugar seco: dura até a validade. Em pote ou balde vedado, sem ar e fresco, a BYU estima até 25 anos. Pacote aberto puxa umidade e atrai caruncho.",
-    preparar: "Pacote aberto: passe o restante para pote com tampa que veda e escreva a validade. Se for guardar em pote por muito tempo, vale o mesmo freezer do arroz (−18 °C por 3 dias).",
-    fontes: ["byu", "ksuPragas"],
+    preparar: "Pacote aberto: passe o restante para pote com tampa que veda e escreva a validade. Se for guardar em pote por muito tempo, vale o mesmo freezer do arroz (−18 °C por 3 dias). Para guardar por anos em garrafa PET, ponha um absorvedor de oxigênio antes de fechar: 200 cc numa garrafa de 2 L (veja o guia do Absorvedor de oxigênio).",
+    fontes: ["byu", "ksuPragas", "usuAbsorvedor"],
   },
   "Sardinha, atum ou carne em lata": {
     escolher: "Latas sem amassado, ferrugem ou estufamento. Prefira tampa abre-fácil; se não for, tenha dois abridores manuais. Em óleo rende mais calorias que em água. Atenção: alguns presuntos e frutos do mar em lata precisam de geladeira; veja o rótulo.",
@@ -210,8 +227,8 @@ window.GUIAS = {
     escolher: "Aveia em flocos (grossos ou finos), pacote fechado. Não precisa de fogo: come-se crua com água ou leite.",
     quanto: "Base: 30 g por pessoa por dia, 3 colheres de sopa: um café da manhã. A BYU calcula 13 kg por adulto por ano (36 g por dia).",
     armazenar: "Pacote fechado: até a validade. Em embalagem vedada sem ar, a BYU estima até 20 anos. A aveia tem um pouco de gordura e rança com calor; depois de aberta, use em poucos meses.",
-    preparar: "Depois de aberta, passe para pote com tampa que veda e escreva a validade. Para guardar por muito tempo, o freezer do arroz evita traças (−18 °C por 3 dias).",
-    fontes: ["byu", "ksuPragas"],
+    preparar: "Depois de aberta, passe para pote com tampa que veda e escreva a validade. Para guardar por muito tempo, o freezer do arroz evita traças (−18 °C por 3 dias). Para guardar por anos em garrafa PET, ponha um absorvedor de oxigênio antes de fechar: 200 cc numa garrafa de 2 L (veja o guia do Absorvedor de oxigênio).",
+    fontes: ["byu", "ksuPragas", "usuAbsorvedor"],
   },
   "Biscoito (maizena / água e sal)": {
     escolher: "Maizena, água e sal ou cream cracker: secos, duram mais que recheados e não derretem no calor. Prefira pacotes com porções individuais.",
@@ -263,7 +280,7 @@ window.GUIAS = {
     fontes: ["fraldas"],
   },
   "Lenço umedecido": {
-    escolher: "Sem perfume e sem álcool, pacote com tampa plástica (resseca menos). Serve para a higiene de todos quando faltar água.",
+    escolher: "Sem perfume e sem álcool, pacote com tampa plástica (resseca menos). Este item conta o lenço do bebê; o dos outros da casa está em Lenço umedecido para higiene.",
     quanto: "Base: 1 pacote por bebê por semana. Estimativa.",
     armazenar: "Tem validade: o líquido evapora e o conservante perde efeito. Fechado e longe do sol. Depois de aberto, resseca em semanas: abra um de cada vez.",
     preparar: "",
