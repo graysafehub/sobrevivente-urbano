@@ -1,6 +1,6 @@
 // Guarda os arquivos do app no aparelho para abrir sem internet.
 // Ao mudar qualquer arquivo, suba a versão para o celular baixar de novo.
-const CACHE = "su-v18";
+const CACHE = "su-v19";
 const ARQUIVOS = [
   "./", "index.html", "styles.css", "app.js", "seed.js", "guias.js", "crises.js", "zonas.js", "avisos.js", "consumo.js", "sync.js", "plano.js", "manifest.webmanifest",
   "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png",

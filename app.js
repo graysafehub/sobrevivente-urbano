@@ -219,10 +219,25 @@ function arredMeta(v, un) {
   if (un === "R$") return Math.ceil(v / 10 - 1e-9) * 10;
   return Math.ceil(v * 10 - 1e-9) / 10;
 }
+// níveis de meta à vista: os três de base e, a partir do segundo, sempre dois acima do atual
+// (na meta de 1 semana abre 1 mês; na de 2 semanas, 1 mês e meio, e assim por diante)
+const nDegraus = () => Math.max(3, state.config.degrau + 3);
+// três níveis em volta do atual, para os quadros
+function janelaDegraus() {
+  const ini = Math.max(0, Math.min(state.config.degrau - 1, nDegraus() - 3));
+  return [ini, ini + 1, ini + 2];
+}
+// meta por casa acima de 2 semanas: a cada nível, soma o quanto a meta cresceu de 1 para 2 semanas
+// (equipamento, como rádio e balde, não cresce; hipoclorito 1 → 2 vira 3, 4…; dinheiro 200 → 300 vira 400, 500…)
+function metaCasa(it, d) {
+  const m = it.metas || [0, 0, 0];
+  if (d < 3) return m[d] || 0;
+  return (m[2] || 0) + Math.max(0, (m[2] || 0) - (m[1] || 0)) * (d - 2);
+}
 function metaDe(it, d) {
-  if (!it.escala || it.escala === "casa") return arredMeta(it.metas?.[d] || 0, it.unidade);
-  if (usaMedido(it)) return arredMeta(consumoMedido(it).porDia * DIAS[d], it.unidade);
-  const v = (it.qtd || 0) * multiplicador(it) * (porDia(it) ? DIAS[d] : 1);
+  if (!it.escala || it.escala === "casa") return arredMeta(metaCasa(it, d), it.unidade);
+  if (usaMedido(it)) return arredMeta(consumoMedido(it).porDia * diasDe(d), it.unidade);
+  const v = (it.qtd || 0) * multiplicador(it) * (porDia(it) ? diasDe(d) : 1);
   return arredMeta(v, it.unidade);
 }
 // texto da base: "0,08 kg por pessoa, por dia"
@@ -441,7 +456,8 @@ function hhmm(m) {
 
 function viewPainel() {
   const c = state.config;
-  const alvoDias = [3, 7, 14][c.degrau];
+  const alvoDias = diasDe(c.degrau);
+  const escalaDias = Math.max(14, alvoDias);
 
   const vencidos = state.lotes.filter(l => diasAte(l.validade) < 0);
   const aVencer = state.lotes.filter(l => vencendo(l, item(l.itemId)))
@@ -463,7 +479,7 @@ function viewPainel() {
     <div class="head">
       <h1><span class="mod">00</span> // Status</h1>
       <label class="inline">Meta
-        <select id="cfgDegrau">${DEGRAUS.map((d, i) => `<option value="${i}" ${i === c.degrau ? "selected" : ""}>${d}</option>`).join("")}</select>
+        <select id="cfgDegrau">${Array.from({ length: nDegraus() }, (_, i) => `<option value="${i}" ${i === c.degrau ? "selected" : ""}>${nomeDegrau(i)}</option>`).join("")}</select>
       </label>
     </div>
 
@@ -477,7 +493,7 @@ function viewPainel() {
           const d = diasCategoria(s.cat);
           if (d === null) return "";
           const cor = d < 3 ? "vermelho" : d < alvoDias ? "amarelo" : "verde";
-          const on = Math.min(d, 14);
+          const on = Math.min(14, Math.round(d / escalaDias * 14));
           return `<a class="sup ${cor}" href="#estoque" style="text-decoration:none;color:inherit">
             <span class="nm">${s.nome}</span>
             <span class="d">${String(d).padStart(2, "0")}<small>D</small></span>
@@ -485,14 +501,16 @@ function viewPainel() {
           </a>`;
         }).join("")}
         <div class="sup" aria-hidden="true"><span></span><span></span>
-          <span class="scale"><span style="left:0">0</span><span style="left:${3 / 14 * 100}%">3</span><span style="left:50%">7</span><span style="right:0">14</span></span>
+          <span class="scale">${escalaDias === 14 ? `<span style="left:0">0</span><span style="left:${3 / 14 * 100}%">3</span><span style="left:50%">7</span><span style="right:0">14</span>`
+            : `<span style="left:0">0</span><span style="left:50%">${Math.round(escalaDias / 2)}</span><span style="right:0">${escalaDias}</span>`}</span>
         </div>
       </div>
       <p class="sub">${nPessoas()} pessoas. Água, comida e higiene pelo consumo diário de cada item${state.items.some(usaMedido) ? ` (${state.items.filter(usaMedido).length} pelo consumo medido)` : ""}; demais itens pela meta de 2 semanas. <a href="#consumo">Consumo medido ›</a></p>
     </div>
 
     <div class="grid3">
-      ${DEGRAUS.map((d, i) => {
+      ${janelaDegraus().map(i => {
+        const d = nomeDegrau(i);
         const p = progressoDegrau(i);
         const pct = p.total ? Math.round(p.ok / p.total * 100) : 0;
         return `<div class="tile ${i === c.degrau ? "atual" : ""}">
@@ -551,7 +569,7 @@ function tileValor() {
   return `<div class="grid2">
     <a class="tile" href="#estoque"><span class="lbl">Valor do estoque</span><b class="sm">${fmtReais(v.total)}</b>
       <span class="sub">${v.semPreco ? `${v.semPreco} ${v.semPreco === 1 ? "item" : "itens"} sem preço` : "pelo preço pago"}</span></a>
-    <a class="tile" href="#compras"><span class="lbl">Falta para ${DEGRAUS[state.config.degrau]}</span><b class="sm">${f.custo ? "≈ " + fmtReais(f.custo) : "—"}</b>
+    <a class="tile" href="#compras"><span class="lbl">Falta para ${nomeDegrau(state.config.degrau)}</span><b class="sm">${f.custo ? "≈ " + fmtReais(f.custo) : "—"}</b>
       <span class="sub">${f.semPreco ? `${f.semPreco} ${f.semPreco === 1 ? "item" : "itens"} sem preço` : f.itens.length ? "pelo último preço" : "meta completa"}</span></a>
   </div>`;
 }
@@ -582,7 +600,7 @@ function viewEstoque(filtro) {
   <section class="stack">
     <div class="head"><h1>Estoque</h1><a class="btn small" href="#novo">Novo item</a></div>
     <div class="chips">${chip("", "Todos")}${chip("vermelho", "Problema")}${chip("amarelo", "Vence logo")}${chip("verde", "Ok")}</div>
-    <p class="sub">Quantidade válida / meta de ${DEGRAUS[state.config.degrau]}</p>
+    <p class="sub">Quantidade válida / meta de ${nomeDegrau(state.config.degrau)}</p>
     ${lista || `<p class="empty">Nenhum item nesse filtro.</p>`}
   </section>`;
 }
@@ -603,7 +621,7 @@ function viewItem(id) {
     <p class="sub">Alertas: ${it.validade ? `${it.vidaMeses ? `validade típica ${it.vidaMeses} ${it.vidaMeses === 1 ? "mês" : "meses"} · ` : ""}avisa ${avisoDe(it)} dias antes de vencer · ` : ""}${temMinimo(it) ? `avisa abaixo de ${fmtQtd(it.minimo, it.unidade)}` : "avisa abaixo da meta"}</p>
 
     <div class="grid3">
-      ${DEGRAUS.map((d, i) => `<div class="tile ${i === state.config.degrau ? "atual" : ""}"><span class="lbl">Meta ${d}</span><b class="sm">${metaDe(it, i) ? fmtQtd(metaDe(it, i), it.unidade) : "—"}</b></div>`).join("")}
+      ${janelaDegraus().map(i => `<div class="tile ${i === state.config.degrau ? "atual" : ""}"><span class="lbl">Meta ${nomeDegrau(i)}</span><b class="sm">${metaDe(it, i) ? fmtQtd(metaDe(it, i), it.unidade) : "—"}</b></div>`).join("")}
     </div>
 
     ${consumoItemHtml(it)}
@@ -743,6 +761,7 @@ function viewEditar(id) {
         <label>Como calcular<select id="iEsc">${Object.entries(ESCALAS).map(([k, t]) => `<option value="${k}" ${k === (it.escala || "casa") ? "selected" : ""}>${t}</option>`).join("")}</select></label>
         <label id="iQtdWrap" ${(it.escala || "casa") === "casa" ? "hidden" : ""}>Quantidade<input id="iQtd" type="number" inputmode="decimal" step="any" min="0" value="${it.qtd != null ? Math.round(it.qtd * 1000) / 1000 : ""}"></label>
         <div class="row3" id="iMetasWrap" ${(it.escala || "casa") === "casa" ? "" : "hidden"}>${DEGRAUS.map((d, i) => `<label>${d}<input id="iM${i}" type="number" inputmode="decimal" step="any" min="0" value="${it.metas?.[i] || 0}"></label>`).join("")}</div>
+        <p class="sub" id="iMetasNota" ${(it.escala || "casa") === "casa" ? "" : "hidden"}>Metas de 1 mês em diante: a cada nível, o app soma o quanto a meta cresce de 1 para 2 semanas. Se as duas forem iguais (equipamento, como rádio ou balde), fica a mesma.</p>
         <p class="sub">Na unidade do item. Com fichas, conta pessoas, adultos (12 anos ou mais) e bebês (até 2 anos) da Família. Hoje: ${nPessoas()} pessoas, ${nAdultos()} adultos, ${nBebes()} ${nBebes() === 1 ? "bebê" : "bebês"}.</p>
       </fieldset>
       <label class="check"><input id="iVal" type="checkbox" ${it.validade ? "checked" : ""}> Tem data de validade</label>
@@ -792,14 +811,14 @@ function viewCompras() {
         <a class="btn small" href="#entrada/${x.i.id}" aria-label="Registrar compra de ${esc(x.i.nome)}">+</a>
       </div></li>`).join("")}</ul></div>`;
   }).join("");
-  const proximo = d < 2 ? `<p class="sub">Quando completar, mude a meta para ${DEGRAUS[d + 1]} no Painel.</p>` : "";
+  const proximo = `<p class="sub">Quando completar, mude a meta para ${nomeDegrau(d + 1)} no Hub: abre também a de ${nomeDegrau(d + 3)}.</p>`;
   return `
   <section class="stack">
     <h1>Lista de compras</h1>
-    <p class="sub">O que falta para a meta de ${DEGRAUS[d]}. Toque no item para ver como escolher e guardar; + registra a compra.</p>
+    <p class="sub">O que falta para a meta de ${nomeDegrau(d)}. Toque no item para ver como escolher e guardar; + registra a compra.</p>
     ${tudo.itens.length ? `<div class="card"><div class="head"><h2>Custo estimado</h2><b>${fmtReais(tudo.custo)}</b></div>
       <p class="sub">Pelo último preço pago ou de referência; sem eles, pelo preço base (pesquisa de ${PRECO_BASE_DATA}, varia por cidade e loja).${tudo.semPreco ? ` ${tudo.semPreco} ${tudo.semPreco === 1 ? "item ainda não tem" : "itens ainda não têm"} preço e ${tudo.semPreco === 1 ? "fica" : "ficam"} fora da conta.` : ""}</p></div>` : ""}
-    ${grupos || `<div class="card"><b>Meta de ${DEGRAUS[d]} completa.</b>${proximo}</div>`}
+    ${grupos || `<div class="card"><b>Meta de ${nomeDegrau(d)} completa.</b>${proximo}</div>`}
   </section>`;
 }
 
@@ -865,7 +884,7 @@ function viewImprimir() {
   <section class="print">
     <div class="noprint actions"><a class="btn ghost" href="#mais">‹ Voltar</a><button class="btn" id="bPrint" type="button">Imprimir</button></div>
     <h1>GraySafe Hub · Inventário</h1>
-    <p>Gerado em ${fmtData(isoHoje())} · meta atual: ${DEGRAUS[d]} · ${nPessoas()} pessoas</p>
+    <p>Gerado em ${fmtData(isoHoje())} · meta atual: ${nomeDegrau(d)} · ${nPessoas()} pessoas</p>
     <table>
       <thead><tr><th>Item</th><th>Em casa</th><th>Meta</th><th>Lotes</th><th>Valor</th></tr></thead>
       <tbody>${CATEGORIAS.map(cat => {
@@ -1167,6 +1186,7 @@ document.addEventListener("change", e => {
   if (t.id === "iEsc") {
     document.getElementById("iQtdWrap").hidden = t.value === "casa";
     document.getElementById("iMetasWrap").hidden = t.value !== "casa";
+    document.getElementById("iMetasNota").hidden = t.value !== "casa";
   }
   if (t.dataset.mochila) {
     const m = state.familia.mochila.find(x => x.id === t.dataset.mochila);

@@ -78,7 +78,10 @@ async function atualizarAvisos() {
       try { geo = typeof x.poligono === "string" ? JSON.parse(x.poligono) : x.poligono; } catch (e) {}
       return porCod || dentroDoPoligono(ponto, geo);
     });
-    a.itens = meus.map(([x, h]) => reduzirAviso(x, h)).sort((p, q) => ORDEM_SEV[p.cor] - ORDEM_SEV[q.cor] || (p.inicio < q.inicio ? -1 : 1));
+    // hora de recebimento: a primeira vez que o app viu o aviso; uma nova leitura não muda
+    const recebidos = Object.fromEntries((a.itens || []).map(x => [x.id, x.recebidoEm || a.lidoEm]));
+    const agora = new Date().toISOString();
+    a.itens = meus.map(([x, h]) => ({ ...reduzirAviso(x, h), recebidoEm: recebidos[x.id] || agora })).sort((p, q) => ORDEM_SEV[p.cor] - ORDEM_SEV[q.cor] || (p.inicio < q.inicio ? -1 : 1));
     if (cod) {
       try {
         const pj = await (await fetch(INMET_PREVISAO + cod, { cache: "no-store", signal: AbortSignal.timeout(25000) })).json();
@@ -114,11 +117,11 @@ function avisosAoRenderizar(rota) {
 // ---------- telas ----------
 
 function fmtLido(iso) {
-  if (!iso) return "nunca lido";
+  if (!iso) return "INMET ainda não verificado";
   const d = new Date(iso);
   const min = Math.round((Date.now() - d) / 60000);
   const quando = min < 1 ? "agora" : min < 60 ? `há ${min} min` : min < 1440 ? `há ${Math.floor(min / 60)} h` : `há ${Math.floor(min / 1440)} d`;
-  return `lido ${d.toLocaleDateString("pt-BR")} ${d.toTimeString().slice(0, 5)} (${quando})`;
+  return `INMET verificado ${d.toLocaleDateString("pt-BR")} ${d.toTimeString().slice(0, 5)} (${quando})`;
 }
 const leituraVelha = a => !a.lidoEm || (Date.now() - new Date(a.lidoEm)) / 3600000 > VELHO_H;
 // "2026-11-04 09:00" → "04/11 09:00"
@@ -129,10 +132,14 @@ const dataInmet = t => new Date(String(t || "").replace(" ", "T") + ":00-03:00")
 const avisosValidos = a => (a.itens || []).filter(x => !(dataInmet(x.fim) < new Date()));
 const nomeLocal = a => a.municipio ? `${a.municipio.nome} (${a.municipio.uf})` : "a casa";
 
+// "05/11 09:51"
+const fmtRecebido = iso => { const d = new Date(iso); return `${d.toLocaleDateString("pt-BR").slice(0, 5)} ${d.toTimeString().slice(0, 5)}`; };
+
 function avisoHtml(x, completo, aberto) {
   const g = guiaDoEvento(x.evento);
   return `<div class="aviso ${x.cor}">
     <div class="head"><b>${esc(x.evento)}</b><span class="badge ${x.cor}">${esc(x.severidade)}</span></div>
+    ${x.recebidoEm ? `<p class="sub recebido">Recebido ${esc(fmtRecebido(x.recebidoEm))}</p>` : ""}
     <p class="sub">${dataInmet(x.inicio) <= new Date() ? "Em vigor" : "Previsto"} · de ${esc(fmtQuando(x.inicio))} até ${esc(fmtQuando(x.fim))}</p>
     ${completo ? `<details ${aberto ? "open" : ""}><summary>Riscos e o que fazer</summary>${x.riscos.map(r => `<p>${esc(r)}</p>`).join("")}
       ${x.instrucoes.length ? `<ul class="passos">${x.instrucoes.map(i => `<li>${esc(i)}</li>`).join("")}</ul>` : ""}</details>

@@ -99,6 +99,11 @@ Em Família › "Plano de comunicação", para quando a crise pega a família se
 
 Cada item do catálogo tem um preço base (seed.js, `PRECO_BASE`), de uma pesquisa básica de varejo de nov/2026, sem cidade definida. Ele entra quando o item não tem preço digitado nem preço pago: a lista de compras e o Hub já estimam o custo desde o começo. Na Entrada, ao digitar o preço pago, o app compara com o base: bom preço (abaixo), na média (até 10% acima), acima (até 30%) ou caro. O preço pago de verdade passa a valer no lugar do base.
 
+## Metas que crescem e hora de recebimento dos avisos
+
+- **Metas:** 3 dias, 1 semana e 2 semanas no começo. Ao passar para a meta de 1 semana, abre a de 1 mês; na de 2 semanas, 1 mês e meio; e assim por diante, de 15 em 15 dias (sempre duas acima da atual). Itens por dia e por pessoa multiplicam pelos dias; itens por casa somam, a cada nível, o quanto a meta cresce de 1 para 2 semanas (equipamento, com as duas iguais, não cresce).
+- **Avisos:** cada aviso mostra quando chegou ao app ("Recebido 05/11 09:51"), a primeira vez que apareceu numa leitura do INMET; novas leituras não mudam essa hora. O INMET não informa a hora de emissão, só o início e o fim.
+
 ## Arquivos
 
 | Arquivo | Função |
@@ -129,4 +134,4 @@ Depois abra http://localhost:8765.
 
 ## Ao alterar arquivos
 
-Suba a versão em `sw.js` (hoje `su-v18`) para o celular baixar a versão nova.
+Suba a versão em `sw.js` (hoje `su-v19`) para o celular baixar a versão nova.

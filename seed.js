@@ -98,8 +98,15 @@ window.PRECO_BASE = {
 
 window.CATEGORIAS = ["Água", "Comida", "Bebê", "Luz e energia", "Saúde e higiene", "Documentos e dinheiro", "Outros"];
 window.UNIDADES = ["kg", "g", "L", "ml", "un", "pct", "rolo", "R$"];
+// metas: 3 dias, 1 semana e 2 semanas; depois 1 mês e, de 15 em 15 dias, 1 mês e meio, 2 meses…
+// DEGRAUS são as três de base (itens por casa têm a meta digitada para cada uma).
 window.DEGRAUS = ["3 dias", "1 semana", "2 semanas"];
-window.DIAS = [3, 7, 14];
+window.diasDe = d => d < 3 ? [3, 7, 14][d] : 30 + 15 * (d - 3);
+window.nomeDegrau = d => {
+  if (d < 3) return DEGRAUS[d];
+  const n = diasDe(d), m = Math.floor(n / 30);
+  return `${m} ${m === 1 ? "mês" : "meses"}${n % 30 ? " e meio" : ""}`;
+};
 
 // Mochila da família. estoque = nome do item do catálogo, para mostrar se há em casa.
 window.SEED_MOCHILA = [
