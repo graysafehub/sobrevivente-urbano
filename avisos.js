@@ -18,6 +18,7 @@ const ORDEM_SEV = { vermelho: 0, laranja: 1, amarelo: 2 };
 function guiaDoEvento(ev) {
   const e = (ev || "").toLowerCase();
   if (/chuv|tempestade|vendaval|granizo|ventos/.test(e)) return "chuva";
+  if (/calor|umidade|seco|temperaturas? alta/.test(e)) return "calor";
   return null;
 }
 

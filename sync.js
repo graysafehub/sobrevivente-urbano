@@ -159,6 +159,9 @@ function juntarEstado(local, outro) {
   }
 
   if (!local.avisos.municipio && outro.avisos?.municipio) local.avisos.municipio = outro.avisos.municipio;
+  // manutenção: vale a data mais recente dos dois
+  local.manutencao ??= {};
+  for (const [t, d] of Object.entries(outro.manutencao || {})) if (!local.manutencao[t] || d > local.manutencao[t]) local.manutencao[t] = d;
   local.catalogo = [...new Set([...(local.catalogo || []), ...(outro.catalogo || [])])];
   return r;
 }

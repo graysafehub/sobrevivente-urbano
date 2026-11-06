@@ -11,6 +11,8 @@ Object.assign(window.FONTES, {
   msDiarreia: { nome: "Ministério da Saúde · Manejo do paciente com diarreia (cartaz)", url: "https://www.gov.br/saude/pt-br/centrais-de-conteudo/publicacoes/svsa/doencas-diarreicas-agudas/manejo-do-paciente-com-diarreia-avaliacao-do-estado-do-paciente" },
   pePebre: { nome: "Secretaria de Saúde de Pernambuco · Febre: quando buscar atendimento médico", url: "https://portal.saude.pe.gov.br/febre-quando-buscar-atendimento-medico/" },
   msAidpi: { nome: "Ministério da Saúde · AIDPI Criança: 2 meses a 5 anos", url: "https://bvsms.saude.gov.br/bvs/publicacoes/manual_quadros_procedimentos_aidpi_crianca_2meses_5anos.pdf" },
+  msCalor: { nome: "Ministério da Saúde · Calor (saúde de A a Z)", url: "https://www.gov.br/saude/pt-br/assuntos/saude-de-a-a-z/c/calor" },
+  smsSPUmidade: { nome: "Secretaria Municipal da Saúde de São Paulo · Baixa umidade do ar", url: "https://prefeitura.sp.gov.br/saude/w/vigilancia_em_saude/saude_ambiental/331729" },
   msDengue: { nome: "Ministério da Saúde · Dengue: diagnóstico e manejo clínico, adulto e criança", url: "https://www.gov.br/saude/pt-br/centrais-de-conteudo/publicacoes/svsa/dengue/dengue-manejo-adulto-crianca-5d-1.pdf" },
 });
 
@@ -173,6 +175,52 @@ window.CRISES = [
     fontes: ["dcChuvas", "dcAlagamentos", "dcVendavais", "msEnchentes"],
   },
 
+  {
+    id: "calor",
+    titulo: "Calor forte e tempo seco",
+    resumo: "Onda de calor ou umidade do ar muito baixa: cuidados em casa e sinais de alerta.",
+    estoque: ["Água potável (garrafas)", "Soro de reidratação oral", "Termômetro", "Balde com tampa"],
+    criancas: true,
+    secoes: [
+      {
+        titulo: "No calor forte",
+        passos: [
+          "Beba água com frequência, mesmo sem sede. Evite bebida alcoólica e com cafeína, que pioram a desidratação.",
+          "Deixe atividades ao ar livre para os horários mais frescos: começo da manhã ou fim da tarde.",
+          "Use roupas leves, claras e que deixem o corpo respirar. Prefira comida leve, como frutas e saladas.",
+          "Use ventilador ou ar-condicionado quando puder. Sem isso em casa, shopping e centro comunitário servem de refúgio nas horas mais quentes.",
+          "Quem tem doença do coração, dos rins, respiratória, circulatória ou diabetes: acompanhe os sintomas de perto e só ajuste remédio com orientação médica.",
+        ],
+      },
+      {
+        titulo: "Crianças, idosos e gestantes",
+        passos: [
+          "São os mais sensíveis ao calor. Ofereça líquidos o tempo todo e mantenha em lugar fresco.",
+          "Criança com diarreia, vômito ou sinais de desidratação: siga o guia Criança com febre ou diarreia, com o soro de reidratação.",
+        ],
+      },
+      {
+        titulo: "No tempo seco (umidade abaixo de 30%)",
+        passos: [
+          "Evite exercício físico ao ar livre.",
+          "Beba água com mais frequência.",
+          "Umedeça o ambiente: vaporizador, toalhas molhadas ou bacias com água no quarto.",
+          "Fique em lugar ventilado e protegido do sol. Evite aglomeração.",
+          "Use soro fisiológico no nariz e colírio lubrificante nos olhos.",
+          "O ar seco pode causar sangramento no nariz, espirros, tosse e dificuldade para respirar, e piorar asma, bronquite, rinite e enfisema: tenha à mão os remédios de quem usa.",
+        ],
+      },
+      {
+        titulo: "Sinais para procurar a unidade de saúde",
+        alerta: true,
+        passos: [
+          "Suor demais, fraqueza, tontura, náusea, dor de cabeça, cãibras ou diarreia no calor: procure a unidade de saúde mais próxima.",
+          "Insolação é emergência e pode matar sem atendimento rápido. Na suspeita, ligue 192 (SAMU).",
+        ],
+      },
+    ],
+    fontes: ["msCalor", "smsSPUmidade"],
+  },
   {
     id: "crianca",
     titulo: "Criança com febre ou diarreia",

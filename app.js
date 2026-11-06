@@ -20,6 +20,7 @@ function seedState() {
     lotes: [],
     movs: [],
     codigos: {},
+    manutencao: {},
     zonas: { lugares: [], rotas: [] },
     avisos: { municipio: null, itens: [], previsao: null, lidoEm: null, erro: "" },
     excluidos: novosExcluidos(),
@@ -56,6 +57,7 @@ function migrar(s) {
   s.familia ??= seedFamilia(s.items);
   s.familia.plano ??= planoPadrao();
   s.codigos ??= {};
+  s.manutencao ??= {};
   s.zonas ??= { lugares: [], rotas: [] };
   s.avisos ??= { municipio: null, itens: [], previsao: null, lidoEm: null, erro: "" };
   if ((s.versao || 1) < 4) migrarBasePorPessoa(s);
@@ -382,6 +384,25 @@ function progressoDegrau(d) {
   return { ok, total: alvo.length };
 }
 
+// use primeiro: lotes que vencem dentro do aviso do item ou em até 90 dias (o que for maior),
+// de comida, água, bebê e higiene: o que dá para pôr no uso da semana
+const USE_PRIMEIRO_DIAS = 90;
+function usePrimeiro() {
+  const cats = ["Água", "Comida", "Bebê", "Saúde e higiene"];
+  return state.lotes.filter(l => {
+    const it = item(l.itemId), d = diasAte(l.validade);
+    return it && cats.includes(it.categoria) && d >= 0 && d <= Math.max(avisoDe(it), USE_PRIMEIRO_DIAS);
+  }).sort((a, b) => a.validade < b.validade ? -1 : 1);
+}
+
+// última compra do item, para repetir na Entrada
+function ultimaCompra(it) {
+  const m = state.movs.filter(x => x.itemId === it.id && x.tipo === "entrada").at(-1);
+  if (!m) return null;
+  const l = state.lotes.filter(x => x.itemId === it.id && x.local).at(-1);
+  return { qtd: m.qtd, marca: m.marca || "", spec: m.spec || "", precoUn: m.precoUn ?? null, local: l?.local || "" };
+}
+
 // saída: tira primeiro do lote que vence antes (rodízio). Anota em baixas quanto saiu de cada lote:
 // com isso, ao juntar dois celulares, cada lote é refeito como quantidade inicial − baixas (sync.js)
 function darSaida(itemId, qtd, baixas = []) {
@@ -418,9 +439,12 @@ function badgeValidade(iso, it) {
   return `<span class="badge verde">vence ${fmtData(iso)}</span>`;
 }
 
-function itemOptions(selId) {
+// opções do campo Item; com busca, só os itens cujo nome tem o texto (sem acento, sem maiúscula)
+const semAcento = t => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+function itemOptions(selId, busca = "") {
+  const q = semAcento(busca).trim();
   return CATEGORIAS.map(cat => {
-    const its = state.items.filter(i => i.categoria === cat).sort((a, b) => a.nome.localeCompare(b.nome));
+    const its = state.items.filter(i => i.categoria === cat && (!q || semAcento(i.nome).includes(q) || i.id === selId)).sort((a, b) => a.nome.localeCompare(b.nome));
     if (!its.length) return "";
     return `<optgroup label="${esc(cat)}">${its.map(i =>
       `<option value="${i.id}" ${i.id === selId ? "selected" : ""}>${esc(i.nome)} (${esc(i.unidade)})</option>`).join("")}</optgroup>`;
@@ -462,6 +486,7 @@ function viewPainel() {
   const vencidos = state.lotes.filter(l => diasAte(l.validade) < 0);
   const aVencer = state.lotes.filter(l => vencendo(l, item(l.itemId)))
     .sort((a, b) => a.validade < b.validade ? -1 : 1);
+  const usar = usePrimeiro();
   const acabando = state.items.filter(i => temMinimo(i) ? qtdValida(i.id) < i.minimo : qtdValida(i.id) < metaDe(i, c.degrau));
 
   const diasBackup = c.ultimoBackup ? -diasAte(c.ultimoBackup) : null;
@@ -537,13 +562,16 @@ function viewPainel() {
       </ul>
     </div>
 
-    ${aVencer.length ? `<div class="card">
-      <h2>Consumir primeiro</h2>
-      <ul class="rows">${aVencer.slice(0, 6).map(l => {
+    ${usar.length ? `<div class="card">
+      <h2>Use primeiro</h2>
+      <p class="sub">Ponha nas refeições da semana o que vence antes. Ao registrar a saída, a reposição entra sozinha na lista de compras.</p>
+      <ul class="rows">${usar.slice(0, 6).map(l => {
         const it = item(l.itemId);
-        return `<li><a href="#item/${l.itemId}"><span class="grow">${esc(it?.nome)}</span><span class="right">${fmtQtd(l.qtd, it?.unidade)} ${badgeValidade(l.validade, it)}</span></a></li>`;
+        return `<li><div class="lote"><a class="grow plain" href="#item/${l.itemId}"><span class="nm">${esc(it?.nome)}</span><span class="sub">${fmtQtd(l.qtd, it?.unidade)}</span></a>${badgeValidade(l.validade, it)}<a class="btn small ghost" href="#saida/${l.itemId}">Usei</a></div></li>`;
       }).join("")}</ul>
     </div>` : ""}
+
+    ${cardManutencaoHub()}
 
     ${cardZonasHub()}
 
@@ -707,7 +735,9 @@ function viewEntrada(id) {
       <button class="btn ghost" id="bScan" type="button">▥ Ler código de barras</button>
       <input id="eCod" type="hidden">
       <p class="sub" id="eCodInfo" hidden></p>
+      <label>Buscar item<input id="eBusca" type="search" autocomplete="off" placeholder="Digite parte do nome, ex.: arroz"></label>
       <label>Item<select id="eItem" required><option value="">Escolha…</option>${itemOptions(id)}</select></label>
+      <button class="btn ghost small" id="bRepetir" type="button" ${it && ultimaCompra(it) ? "" : "hidden"}>Repetir a última compra</button>
       <a class="sub link" href="#novo">Não está na lista? Cadastrar novo item</a>
       <div class="row2">
         <label>Quantidade<input id="eQtd" type="number" inputmode="decimal" step="any" min="0.01" required></label>
@@ -733,6 +763,7 @@ function viewSaida(id) {
   <section class="stack">
     <h1>Saída</h1>
     <form id="fSaida" class="card form">
+      <label>Buscar item<input id="sBusca" type="search" autocomplete="off" placeholder="Digite parte do nome"></label>
       <label>Item<select id="sItem" required><option value="">Escolha…</option>${itemOptions(id)}</select></label>
       <p class="sub" id="sDisp">${it ? `Em casa: ${fmtQtd(qtdTotal(id), it.unidade)}. Sai primeiro o que vence antes.` : ""}</p>
       <div class="row2">
@@ -843,6 +874,7 @@ function viewMais() {
       <p class="sub">Imprima uma vez por mês e guarde na mochila. Funciona mesmo sem bateria.</p>
       <a class="btn ghost" href="#imprimir">Abrir versão para imprimir</a>
       <a class="btn ghost" href="#crise/todos">Imprimir os guias de crise</a>
+      <a class="btn ghost" href="#manutencao">Manutenção periódica</a>
     </div>
 
     <form class="card form" id="fCfg">
@@ -1130,12 +1162,13 @@ function render() {
     avisos: () => viewAvisos(),
     consumo: () => viewConsumo(),
     plano: () => viewPlano(),
+    manutencao: () => viewManutencao(),
   };
   $view.innerHTML = (telas[rota] || telas.painel)();
   zonasAoRenderizar(rota);
   avisosAoRenderizar(rota);
   document.body.classList.toggle("printing", ["imprimir", "cartao", "crise"].includes(rota));
-  const ativa = { item: "estoque", editar: "estoque", novo: "estoque", saida: "estoque", imprimir: "mais", crises: "painel", crise: "painel", pessoa: "familia", contato: "familia", cartao: "familia", zonas: "familia", lugar: "familia", rota: "familia", avisos: "painel", consumo: "painel", plano: "familia" }[rota] || rota;
+  const ativa = { item: "estoque", editar: "estoque", novo: "estoque", saida: "estoque", imprimir: "mais", crises: "painel", crise: "painel", pessoa: "familia", contato: "familia", cartao: "familia", zonas: "familia", lugar: "familia", rota: "familia", avisos: "painel", consumo: "painel", plano: "familia", manutencao: "painel" }[rota] || rota;
   document.querySelectorAll(".tabbar a").forEach(a => a.classList.toggle("on", a.dataset.route === ativa));
   window.scrollTo(0, 0);
   if (rota === "mais") mostrarPersistencia();
@@ -1167,6 +1200,7 @@ document.addEventListener("change", e => {
     // trocar o item à mão desfaz a leitura do código
     if (e.isTrusted) { document.getElementById("eCod").value = ""; document.getElementById("eCodInfo").hidden = true; }
     document.getElementById("eUn").value = it?.unidade || "";
+    document.getElementById("bRepetir").hidden = !(it && ultimaCompra(it));
     document.getElementById("eValWrap").hidden = it ? !it.validade : false;
     document.getElementById("eVal").value = validadeSugerida(it);
     document.getElementById("eValInfo").hidden = !validadeSugerida(it);
@@ -1480,6 +1514,32 @@ function aplicarCodigo(cod) {
   toast(`Reconhecido: ${it.nome}`);
   document.getElementById("eQtd").focus();
 }
+
+// busca no campo Item (Entrada e Saída): refaz a lista; se sobrar um item só, ele já fica escolhido
+document.addEventListener("input", e => {
+  const alvo = { eBusca: "eItem", sBusca: "sItem" }[e.target.id];
+  if (!alvo) return;
+  const sel = document.getElementById(alvo);
+  const atual = sel.value;
+  sel.innerHTML = `<option value="">${e.target.value.trim() ? "Escolha entre os encontrados…" : "Escolha…"}</option>` + itemOptions(atual, e.target.value);
+  const opts = [...sel.querySelectorAll("option[value]")].filter(o => o.value);
+  if (opts.length === 1 && sel.value !== opts[0].value) { sel.value = opts[0].value; sel.dispatchEvent(new Event("change", { bubbles: true })); }
+  else if (!opts.some(o => o.value === atual)) sel.value = "";
+});
+
+document.addEventListener("click", e => {
+  if (e.target.id !== "bRepetir") return;
+  const it = item(document.getElementById("eItem").value);
+  const u = it && ultimaCompra(it);
+  if (!u) return;
+  const set = (id, v) => { const el = document.getElementById(id); if (el && v !== "" && v != null) el.value = v; };
+  set("eQtd", u.qtd); set("eMarca", u.marca); set("eSpec", u.spec); set("eLocal", u.local);
+  if (u.precoUn != null && it.unidade !== "R$") set("ePreco", Math.round(u.precoUn * u.qtd * 100) / 100);
+  const val = document.getElementById("eVal");
+  if (val && !val.value) val.value = validadeSugerida(it);
+  document.getElementById("ePreco").dispatchEvent(new Event("input", { bubbles: true }));
+  toast("Preenchido com a última compra. Confira a validade e o preço.");
+});
 
 // Entrada: avalia o preço enquanto digita
 document.addEventListener("input", e => {

@@ -104,6 +104,22 @@ Cada item do catálogo tem um preço base (seed.js, `PRECO_BASE`), de uma pesqui
 - **Metas:** 3 dias, 1 semana e 2 semanas no começo. Ao passar para a meta de 1 semana, abre a de 1 mês; na de 2 semanas, 1 mês e meio; e assim por diante, de 15 em 15 dias (sempre duas acima da atual). Itens por dia e por pessoa multiplicam pelos dias; itens por casa somam, a cada nível, o quanto a meta cresce de 1 para 2 semanas (equipamento, com as duas iguais, não cresce).
 - **Avisos:** cada aviso mostra quando chegou ao app ("Recebido 05/11 09:51"), a primeira vez que apareceu numa leitura do INMET; novas leituras não mudam essa hora. O INMET não informa a hora de emissão, só o início e o fim.
 
+## Uso do dia a dia
+
+- **Guia de crise "Calor forte e tempo seco":** cuidados no calor e com umidade abaixo de 30%, grupos mais sensíveis e sinais para procurar atendimento (Ministério da Saúde e Secretaria Municipal da Saúde de SP). Avisos do INMET de baixa umidade e onda de calor apontam para ele.
+- **Manutenção periódica:** trocar a água guardada (6 meses), conferir power banks (3 meses), testar lanternas, rádio e pilhas, revisar mochila e documentos, simulado do plano de comunicação. Aparece no Hub quando vence; "Feito" marca a data. Na junção de dois celulares vale a data mais recente.
+- **Use primeiro:** no Hub, os lotes de comida, água, bebê e higiene que vencem em até 90 dias (ou no aviso do item, se maior), com o botão "Usei" que abre a Saída.
+- **Busca de item** na Entrada e na Saída; se sobra um item só, ele já fica escolhido.
+- **Repetir a última compra** na Entrada: preenche quantidade, marca, especificação, preço e onde guardou.
+
+## Testes
+
+```bash
+node tests/testes.js
+```
+
+Sem instalar nada. Confere metas (inclusive as que crescem), consumo medido, junção de dois celulares, coordenadas, avaliação de preço, migração de dados antigos e plano de comunicação. Rode antes de publicar.
+
 ## Arquivos
 
 | Arquivo | Função |
@@ -118,6 +134,8 @@ Cada item do catálogo tem um preço base (seed.js, `PRECO_BASE`), de uma pesqui
 | `consumo.js` | consumo medido pelas saídas |
 | `sync.js` | junção de dois celulares por arquivo |
 | `plano.js` | plano de comunicação e quem usa o celular |
+| `manutencao.js` | tarefas de manutenção periódica |
+| `tests/testes.js` | testes das contas (não vai para o celular) |
 | `styles.css` | visual |
 | `sw.js` | guarda o app no celular para abrir offline |
 | `manifest.webmanifest` + `icons/` | permite instalar na tela inicial |
@@ -134,4 +152,4 @@ Depois abra http://localhost:8765.
 
 ## Ao alterar arquivos
 
-Suba a versão em `sw.js` (hoje `su-v19`) para o celular baixar a versão nova.
+Suba a versão em `sw.js` (hoje `su-v20`) para o celular baixar a versão nova.
